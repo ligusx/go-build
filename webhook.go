@@ -128,6 +128,16 @@ func (s *WebhookServer) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "SMS received")
 }
+// 新增查询接口
+func (s *WebhookServer) setupQueryAPI() {
+    http.HandleFunc("/query", func(w http.ResponseWriter, r *http.Request) {
+        smsMutex.Lock()
+        defer smsMutex.Unlock()
+        
+        json.NewEncoder(w).Encode(receivedSms)
+    })
+}
+//新增结束
 
 func (s *WebhookServer) Start() error {
 	http.HandleFunc(s.config.Path, s.handleWebhook)

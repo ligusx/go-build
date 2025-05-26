@@ -1,0 +1,37 @@
+name: Build and Release Hook
+
+on:
+  push:
+    tags:
+      - 'v*'   # 方式1：通过 git tag 触发（推荐）
+  workflow_dispatch:  # 方式2：手动在 GitHub UI 触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'  # 改为你的 Go 版本
+
+      - name: Build Hook (Linux)
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -o dist/hook-linux ./webhook.go
+          GOOS=windows GOARCH=amd64 go build -o dist/hook-windows.exe ./webhook.go
+          GOOS=darwin GOARCH=amd64 go build -o dist/hook-macos ./webhook.go
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/webhook-linux
+            dist/webhook-windows.exe
+            dist/webhook-macos
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

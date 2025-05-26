@@ -21,9 +21,9 @@ jobs:
       - name: Build Hook (Linux)
         run: |
           mkdir -p dist
-          GOOS=linux GOARCH=amd64 go build -o dist/hook-linux ./webhook.go
-          GOOS=windows GOARCH=amd64 go build -o dist/hook-windows.exe ./webhook.go
-          GOOS=darwin GOARCH=amd64 go build -o dist/hook-macos ./webhook.go
+          GOOS=linux GOARCH=amd64 go build -o dist/webhook-linux ./webhook.go
+          GOOS=windows GOARCH=amd64 go build -o dist/webhook-windows.exe ./webhook.go
+          GOOS=darwin GOARCH=amd64 go build -o dist/webhook-macos ./webhook.go
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

@@ -85,7 +85,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			.form-group { margin-bottom: 1rem; }
 			.form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
 			.form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; }
-			textarea.form-control { min-height: 200px; resize: vertical; }
+			textarea.form-control { min-height: 500px; resize: vertical; font-family: monospace; line-height: 1.4; }
 			.alert { padding: 15px; border-radius: 5px; margin-bottom: 1rem; }
 			.alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 			.alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
@@ -165,6 +165,21 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>上传文件</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f5f7fa; }
+			.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+			header { background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); color: white; padding: 2rem 0; text-align: center; border-radius: 10px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+			h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+			.card { background: white; border-radius: 10px; padding: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 2rem; }
+			.btn { display: inline-block; background: #2575fc; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; transition: background 0.3s; }
+			.btn:hover { background: #1a5fd8; }
+			.btn-secondary { background: #6c757d; }
+			.btn-secondary:hover { background: #5a6268; }
+			.form-group { margin-bottom: 1rem; }
+			.form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+			.form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; }
+		</style>
 	</head>
 	<body>
 		<div class="container">
@@ -269,6 +284,18 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>文件管理</title>
 		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f5f7fa; }
+			.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+			header { background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); color: white; padding: 2rem 0; text-align: center; border-radius: 10px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+			h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+			.btn { display: inline-block; background: #2575fc; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; transition: background 0.3s; }
+			.btn:hover { background: #1a5fd8; }
+			.btn-secondary { background: #6c757d; }
+			.btn-secondary:hover { background: #5a6268; }
+			.alert { padding: 15px; border-radius: 5px; margin-bottom: 1rem; }
+			.alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+			
 			.file-manager {
 				max-width: 1000px;
 				margin: 0 auto;
@@ -379,7 +406,9 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 				display: flex;
 				gap: 0.5rem;
 			}
-			.btn {
+			.btn-download {
+				background: #28a745;
+				color: white;
 				padding: 8px 16px;
 				border-radius: 6px;
 				text-decoration: none;
@@ -387,16 +416,18 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 				font-size: 0.9rem;
 				transition: all 0.2s;
 			}
-			.btn-download {
-				background: #28a745;
-				color: white;
-			}
 			.btn-download:hover {
 				background: #218838;
 			}
 			.btn-delete {
 				background: #dc3545;
 				color: white;
+				padding: 8px 16px;
+				border-radius: 6px;
+				text-decoration: none;
+				font-weight: 500;
+				font-size: 0.9rem;
+				transition: all 0.2s;
 			}
 			.btn-delete:hover {
 				background: #c82333;
@@ -525,20 +556,6 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, tmpl)
 }
 
-// 文件大小格式化函数
-func formatFileSize(size int64) string {
-	const unit = 1024
-	if size < unit {
-		return fmt.Sprintf("%d B", size)
-	}
-	div, exp := int64(unit), 0
-	for n := size / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
-}
-
 // 删除文件处理器
 func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 	filename := strings.TrimPrefix(r.URL.Path, "/delete-file/")
@@ -565,7 +582,8 @@ func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 	// 重定向到文件列表页，显示成功消息
 	http.Redirect(w, r, "/files?msg=文件删除成功", http.StatusSeeOther)
 }
-// 笔记列表处理器
+
+// 笔记列表处理器 - 美化版本
 func notesHandler(w http.ResponseWriter, r *http.Request) {
 	// 生成笔记列表HTML
 	noteListHTML := ""
@@ -608,6 +626,10 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>笔记管理</title>
 		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f5f7fa; }
+			.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+			
 			.notes-container {
 				max-width: 1000px;
 				margin: 0 auto;
@@ -617,6 +639,10 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 				justify-content: space-between;
 				align-items: center;
 				margin-bottom: 2rem;
+			}
+			.notes-header h1 {
+				font-size: 2.5rem;
+				color: #333;
 			}
 			.notes-grid {
 				display: grid;
@@ -770,23 +796,6 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, tmpl)
 }
 
-// 获取笔记预览内容
-func getNotePreview(body string) string {
-	// 移除换行和多余空格
-	preview := strings.TrimSpace(body)
-	preview = strings.ReplaceAll(preview, "\n", " ")
-	
-	// 限制长度
-	if len(preview) > 120 {
-		preview = preview[:120] + "..."
-	}
-	
-	if preview == "" {
-		preview = "暂无内容"
-	}
-	
-	return template.HTMLEscapeString(preview)
-}
 // 笔记编辑器处理器
 func noteHandler(w http.ResponseWriter, r *http.Request) {
 	title := strings.TrimPrefix(r.URL.Path, "/note/")
@@ -817,6 +826,24 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>笔记编辑器</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f5f7fa; }
+			.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+			header { background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); color: white; padding: 2rem 0; text-align: center; border-radius: 10px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+			h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+			.card { background: white; border-radius: 10px; padding: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 2rem; }
+			.btn { display: inline-block; background: #2575fc; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; transition: background 0.3s; }
+			.btn:hover { background: #1a5fd8; }
+			.btn-secondary { background: #6c757d; }
+			.btn-secondary:hover { background: #5a6268; }
+			.btn-success { background: #28a745; }
+			.btn-success:hover { background: #218838; }
+			.form-group { margin-bottom: 1rem; }
+			.form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+			.form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; }
+			textarea.form-control { min-height: 500px; resize: vertical; font-family: monospace; line-height: 1.4; }
+		</style>
 	</head>
 	<body>
 		<div class="container">
@@ -1061,4 +1088,36 @@ func saveNoteToFile(title, body string) error {
 func deleteNoteFile(title string) error {
 	filename := filepath.Join("note", title+".txt")
 	return os.Remove(filename)
+}
+
+// 获取笔记预览内容
+func getNotePreview(body string) string {
+	// 移除换行和多余空格
+	preview := strings.TrimSpace(body)
+	preview = strings.ReplaceAll(preview, "\n", " ")
+	
+	// 限制长度
+	if len(preview) > 120 {
+		preview = preview[:120] + "..."
+	}
+	
+	if preview == "" {
+		preview = "暂无内容"
+	}
+	
+	return template.HTMLEscapeString(preview)
+}
+
+// 文件大小格式化函数
+func formatFileSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
 }

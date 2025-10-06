@@ -36,6 +36,7 @@ func main() {
 	http.HandleFunc("/save-note", saveNoteHandler)
 	http.HandleFunc("/delete-note/", deleteNoteHandler)
 	http.HandleFunc("/files", filesHandler)
+	http.HandleFunc("/delete-file/", deleteFileHandler)
 	
 	// 静态文件服务
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
@@ -75,6 +76,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 			.btn-secondary:hover { background: #5a6268; }
 			.btn-success { background: #28a745; }
 			.btn-success:hover { background: #218838; }
+			.btn-danger { background: #dc3545; }
+			.btn-danger:hover { background: #c82333; }
 			.file-list, .note-list { list-style: none; }
 			.file-list li, .note-list li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
 			.file-list li:last-child, .note-list li:last-child { border-bottom: none; }
@@ -162,7 +165,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>上传文件</title>
-		<link rel="stylesheet" href="/static/style.css">
 	</head>
 	<body>
 		<div class="container">
@@ -234,7 +236,7 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 				<span>%s</span>
 				<div class="file-actions">
 					<a href="/download/%s" class="btn">下载</a>
-					<a href="/delete-file/%s" class="btn btn-secondary" onclick="return confirm('确定删除文件 %s 吗？')">删除</a>
+					<a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')">删除</a>
 				</div>
 			</li>
 			`, file.Name(), file.Name(), file.Name(), file.Name())
@@ -258,7 +260,6 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>文件管理</title>
-		<link rel="stylesheet" href="/static/style.css">
 	</head>
 	<body>
 		<div class="container">
@@ -287,6 +288,33 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, tmpl)
 }
 
+// 删除文件处理器
+func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
+	filename := strings.TrimPrefix(r.URL.Path, "/delete-file/")
+	if filename == "" {
+		http.Error(w, "文件名不能为空", http.StatusBadRequest)
+		return
+	}
+	
+	filepath := filepath.Join("up", filename)
+	
+	// 检查文件是否存在
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+		http.NotFound(w, r)
+		return
+	}
+	
+	// 删除文件
+	err := os.Remove(filepath)
+	if err != nil {
+		http.Error(w, "删除文件失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// 重定向到文件列表页，显示成功消息
+	http.Redirect(w, r, "/files?msg=文件删除成功", http.StatusSeeOther)
+}
+
 // 笔记列表处理器
 func notesHandler(w http.ResponseWriter, r *http.Request) {
 	// 生成笔记列表HTML
@@ -297,7 +325,7 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 			<span>%s</span>
 			<div class="note-actions">
 				<a href="/note/%s" class="btn">编辑</a>
-				<a href="/delete-note/%s" class="btn btn-secondary" onclick="return confirm('确定删除笔记 %s 吗？')">删除</a>
+				<a href="/delete-note/%s" class="btn btn-danger" onclick="return confirm('确定删除笔记 %s 吗？')">删除</a>
 			</div>
 		</li>
 		`, title, title, title, title)
@@ -314,7 +342,6 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>笔记管理</title>
-		<link rel="stylesheet" href="/static/style.css">
 	</head>
 	<body>
 		<div class="container">
@@ -371,7 +398,6 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>笔记编辑器</title>
-		<link rel="stylesheet" href="/static/style.css">
 	</head>
 	<body>
 		<div class="container">
@@ -440,8 +466,9 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// 如果是编辑现有笔记且标题改变，需要删除旧笔记
+	// 如果是编辑现有笔记且标题改变，需要删除旧笔记文件
 	if !isNew && oldTitle != title {
+		deleteNoteFile(oldTitle)
 		delete(notes, oldTitle)
 		// 从noteTitles中移除旧标题
 		for i, t := range noteTitles {
@@ -452,7 +479,14 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	// 保存笔记
+	// 保存笔记到文件
+	err := saveNoteToFile(title, body)
+	if err != nil {
+		http.Error(w, "保存笔记失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// 更新内存中的笔记数据
 	notes[title] = &Note{Title: title, Body: body}
 	
 	// 如果标题不在noteTitles中，添加它
@@ -467,9 +501,6 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 		noteTitles = append(noteTitles, title)
 	}
 	
-	// 保存到文件
-	saveNotes()
-	
 	// 重定向到笔记列表
 	http.Redirect(w, r, "/notes", http.StatusSeeOther)
 }
@@ -483,7 +514,14 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// 删除笔记
+	// 删除笔记文件
+	err := deleteNoteFile(title)
+	if err != nil && !os.IsNotExist(err) {
+		http.Error(w, "删除笔记文件失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// 从内存中删除笔记
 	delete(notes, title)
 	
 	// 从noteTitles中移除
@@ -494,32 +532,114 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	// 保存到文件
-	saveNotes()
-	
 	// 重定向到笔记列表
 	http.Redirect(w, r, "/notes", http.StatusSeeOther)
 }
 
 // 加载笔记
 func loadNotes() {
-	// 这里简化处理，实际应用中应该从文件或数据库加载
-	// 添加一些示例笔记
-	notes["欢迎使用"] = &Note{
-		Title: "欢迎使用",
-		Body:  "这是一个在线笔记应用的示例。您可以创建、编辑和删除笔记。",
-	}
-	noteTitles = append(noteTitles, "欢迎使用")
+	// 确保note目录存在
+	os.Mkdir("note", 0755)
 	
-	notes["使用说明"] = &Note{
-		Title: "使用说明",
-		Body:  "1. 点击'新建笔记'创建新笔记\n2. 点击笔记标题编辑现有笔记\n3. 使用删除按钮删除笔记",
+	// 读取note目录下的所有文件
+	files, err := os.ReadDir("note")
+	if err != nil {
+		fmt.Printf("读取笔记目录失败: %v\n", err)
+		// 创建示例笔记
+		createSampleNotes()
+		return
 	}
-	noteTitles = append(noteTitles, "使用说明")
+	
+	// 清空当前笔记数据
+	notes = make(map[string]*Note)
+	noteTitles = []string{}
+	
+	// 遍历所有文件并加载笔记内容
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		
+		// 只处理.txt文件
+		if strings.HasSuffix(file.Name(), ".txt") {
+			title := strings.TrimSuffix(file.Name(), ".txt")
+			content, err := os.ReadFile(filepath.Join("note", file.Name()))
+			if err != nil {
+				fmt.Printf("读取笔记文件失败 %s: %v\n", file.Name(), err)
+				continue
+			}
+			
+			// 添加到笔记映射
+			notes[title] = &Note{
+				Title: title,
+				Body:  string(content),
+			}
+			noteTitles = append(noteTitles, title)
+		}
+	}
+	
+	// 如果没有笔记，创建示例笔记
+	if len(notes) == 0 {
+		createSampleNotes()
+	}
+	
+	fmt.Printf("成功加载 %d 个笔记\n", len(notes))
+}
+
+// 创建示例笔记
+func createSampleNotes() {
+	sampleNotes := map[string]string{
+		"欢迎使用": "这是一个在线笔记应用的示例。您可以创建、编辑和删除笔记。\n\n笔记会自动保存到程序同文件夹下的note文件夹中。",
+		"使用说明": "1. 点击'新建笔记'创建新笔记\n2. 点击笔记标题编辑现有笔记\n3. 使用删除按钮删除笔记\n4. 所有笔记会自动保存到note文件夹中",
+	}
+	
+	for title, body := range sampleNotes {
+		// 保存到文件
+		err := os.WriteFile(filepath.Join("note", title+".txt"), []byte(body), 0644)
+		if err != nil {
+			fmt.Printf("创建示例笔记失败 %s: %v\n", title, err)
+			continue
+		}
+		
+		// 添加到内存
+		notes[title] = &Note{
+			Title: title,
+			Body:  body,
+		}
+		noteTitles = append(noteTitles, title)
+	}
+	
+	fmt.Println("已创建示例笔记")
 }
 
 // 保存笔记到文件
 func saveNotes() {
-	// 这里简化处理，实际应用中应该保存到文件或数据库
-	// 在这个示例中，我们只是将笔记保存在内存中
+	// 确保note目录存在
+	os.Mkdir("note", 0755)
+	
+	// 保存所有笔记到文件
+	for title, note := range notes {
+		filename := filepath.Join("note", title+".txt")
+		err := os.WriteFile(filename, []byte(note.Body), 0644)
+		if err != nil {
+			fmt.Printf("保存笔记失败 %s: %v\n", title, err)
+		}
+	}
+	
+	fmt.Printf("已保存 %d 个笔记到note文件夹\n", len(notes))
+}
+
+// 保存单个笔记到文件
+func saveNoteToFile(title, body string) error {
+	// 确保note目录存在
+	os.Mkdir("note", 0755)
+	
+	filename := filepath.Join("note", title+".txt")
+	return os.WriteFile(filename, []byte(body), 0644)
+}
+
+// 删除笔记文件
+func deleteNoteFile(title string) error {
+	filename := filepath.Join("note", title+".txt")
+	return os.Remove(filename)
 }

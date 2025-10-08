@@ -157,7 +157,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// 显示上传表单
+	// ==================== 显示上传表单 - 美化版 ====================
 	tmpl := `
 	<!DOCTYPE html>
 	<html lang="zh-CN">
@@ -406,7 +406,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath)
 }
 
-// 文件列表处理器
+// ==================== 文件列表处理器 - 美化版 ====================
 func filesHandler(w http.ResponseWriter, r *http.Request) {
 	// 获取消息参数
 	msg := r.URL.Query().Get("msg")
@@ -420,22 +420,54 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// 生成文件列表HTML
 	fileListHTML := ""
+	fileCount := 0
 	for _, file := range files {
 		if !file.IsDir() {
+			fileCount++
+			fileInfo, _ := file.Info()
+			fileSize := formatFileSize(fileInfo.Size())
+			fileIcon := getFileIcon(file.Name())
+			
 			fileListHTML += fmt.Sprintf(`
 			<li>
-				<span>%s</span>
+				<div class="file-info">
+					<div class="file-icon">%s</div>
+					<div class="file-details">
+						<div class="file-name">%s</div>
+						<div class="file-size">%s</div>
+					</div>
+				</div>
 				<div class="file-actions">
-					<a href="/download/%s" class="btn">下载</a>
-					<a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')">删除</a>
+					<a href="/download/%s" class="btn btn-download" title="下载文件">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+							<polyline points="7 10 12 15 17 10"></polyline>
+							<line x1="12" y1="15" x2="12" y2="3"></line>
+						</svg>
+						下载
+					</a>
+					<a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')" title="删除文件">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<polyline points="3 6 5 6 21 6"></polyline>
+							<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+						</svg>
+						删除
+					</a>
 				</div>
 			</li>
-			`, file.Name(), file.Name(), file.Name(), file.Name())
+			`, fileIcon, file.Name(), fileSize, file.Name(), file.Name(), file.Name())
 		}
 	}
 	
 	if fileListHTML == "" {
-		fileListHTML = "<li>暂无文件</li>"
+		fileListHTML = `
+		<li class="empty-state">
+			<div class="empty-icon">📁</div>
+			<div class="empty-text">暂无文件</div>
+			<div class="empty-subtext">上传您的第一个文件开始使用</div>
+			<a href="/upload" class="btn">上传文件</a>
+		</li>
+		`
 	}
 	
 	// 显示消息
@@ -444,7 +476,8 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 		alertHTML = fmt.Sprintf(`<div class="alert alert-success">%s</div>`, msg)
 	}
 	
-	tmpl := fmt.Sprintf(`<!DOCTYPE html>
+	// 构建完整的HTML
+	html := `<!DOCTYPE html>
 	<html lang="zh-CN">
 	<head>
 		<meta charset="UTF-8">
@@ -654,11 +687,11 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 				</div>
 			</header>
 			
-			%s
+			` + alertHTML + `
 			
 			<div class="stats">
 				<div class="stat-card">
-					<div class="stat-number">%d</div>
+					<div class="stat-number">` + fmt.Sprintf("%d", fileCount) + `</div>
 					<div class="stat-label">文件数量</div>
 				</div>
 			</div>
@@ -666,16 +699,15 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 			<div class="card">
 				<h2>文件列表</h2>
 				<ul class="file-list">
-					%s
+					` + fileListHTML + `
 				</ul>
 			</div>
 		</div>
 	</body>
-	</html>
-	`, alertHTML, fileListHTML)
+	</html>`
 	
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, tmpl)
+	fmt.Fprint(w, html)
 }
 
 // 删除文件处理器
@@ -705,27 +737,54 @@ func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/files?msg=文件删除成功", http.StatusSeeOther)
 }
 
-// 笔记列表处理器
+// ==================== 笔记列表处理器 - 美化版 ====================
 func notesHandler(w http.ResponseWriter, r *http.Request) {
 	// 生成笔记列表HTML
 	noteListHTML := ""
 	for _, title := range noteTitles {
+		note := notes[title]
+		preview := getNotePreview(note.Body)
+		
 		noteListHTML += fmt.Sprintf(`
 		<li>
-			<span>%s</span>
+			<div class="note-info">
+				<div class="note-title">%s</div>
+				<div class="note-preview">%s</div>
+				<div class="note-meta">创建时间: 刚刚</div>
+			</div>
 			<div class="note-actions">
-				<a href="/note/%s" class="btn">编辑</a>
-				<a href="/delete-note/%s" class="btn btn-danger" onclick="return confirm('确定删除笔记 %s 吗？')">删除</a>
+				<a href="/note/%s" class="btn btn-edit" title="编辑笔记">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+						<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+					</svg>
+					编辑
+				</a>
+				<a href="/delete-note/%s" class="btn btn-danger" onclick="return confirm('确定删除笔记 %s 吗？')" title="删除笔记">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<polyline points="3 6 5 6 21 6"></polyline>
+						<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+					</svg>
+					删除
+				</a>
 			</div>
 		</li>
-		`, title, title, title, title)
+		`, title, preview, title, title, title)
 	}
 	
 	if noteListHTML == "" {
-		noteListHTML = "<li>暂无笔记</li>"
+		noteListHTML = `
+		<li class="empty-state">
+			<div class="empty-icon">📝</div>
+			<div class="empty-text">暂无笔记</div>
+			<div class="empty-subtext">创建您的第一个笔记开始记录</div>
+			<a href="/note/new" class="btn">新建笔记</a>
+		</li>
+		`
 	}
 	
-	tmpl := fmt.Sprintf(`<!DOCTYPE html>
+	// 构建完整的HTML
+	html := `<!DOCTYPE html>
 	<html lang="zh-CN">
 	<head>
 		<meta charset="UTF-8">
@@ -932,7 +991,7 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 			
 			<div class="stats">
 				<div class="stat-card">
-					<div class="stat-number">%d</div>
+					<div class="stat-number">` + fmt.Sprintf("%d", len(noteTitles)) + `</div>
 					<div class="stat-label">笔记数量</div>
 				</div>
 			</div>
@@ -940,19 +999,18 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 			<div class="card">
 				<h2>笔记列表</h2>
 				<ul class="note-list">
-					%s
+					` + noteListHTML + `
 				</ul>
 			</div>
 		</div>
 	</body>
-	</html>
-	`, noteListHTML)
+	</html>`
 	
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, tmpl)
+	fmt.Fprint(w, html)
 }
 
-// 笔记编辑器处理器
+// ==================== 笔记编辑器处理器 - 美化版 ====================
 func noteHandler(w http.ResponseWriter, r *http.Request) {
 	title := strings.TrimPrefix(r.URL.Path, "/note/")
 	
@@ -974,8 +1032,14 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 		isNew = false
 	}
 	
+	pageTitle := "新建笔记"
+	if !isNew {
+		pageTitle = "编辑笔记: " + note.Title
+	}
+	
 	// 显示笔记编辑器
-	tmpl := `	<!DOCTYPE html>
+	tmpl := `
+	<!DOCTYPE html>
 	<html lang="zh-CN">
 	<head>
 		<meta charset="UTF-8">
@@ -1219,13 +1283,15 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 	`
 	
 	data := struct {
-		Title  string
-		Body   string
-		IsNew  bool
+		Title     string
+		Body      string
+		IsNew     bool
+		PageTitle string
 	}{
-		Title: note.Title,
-		Body:  note.Body,
-		IsNew: isNew,
+		Title:     note.Title,
+		Body:      note.Body,
+		IsNew:     isNew,
+		PageTitle: pageTitle,
 	}
 	
 	t, err := template.New("note").Parse(tmpl)
@@ -1324,6 +1390,62 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// 重定向到笔记列表
 	http.Redirect(w, r, "/notes", http.StatusSeeOther)
+}
+
+// 辅助函数：格式化文件大小
+func formatFileSize(size int64) string {
+	if size < 1024 {
+		return fmt.Sprintf("%d B", size)
+	} else if size < 1024*1024 {
+		return fmt.Sprintf("%.1f KB", float64(size)/1024)
+	} else if size < 1024*1024*1024 {
+		return fmt.Sprintf("%.1f MB", float64(size)/(1024*1024))
+	} else {
+		return fmt.Sprintf("%.1f GB", float64(size)/(1024*1024*1024))
+	}
+}
+
+// 辅助函数：获取文件图标
+func getFileIcon(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".txt", ".md":
+		return "📄"
+	case ".pdf":
+		return "📕"
+	case ".doc", ".docx":
+		return "📘"
+	case ".xls", ".xlsx":
+		return "📗"
+	case ".jpg", ".jpeg", ".png", ".gif", ".bmp":
+		return "🖼️"
+	case ".mp3", ".wav", ".flac":
+		return "🎵"
+	case ".mp4", ".avi", ".mov":
+		return "🎬"
+	case ".zip", ".rar", ".7z":
+		return "📦"
+	default:
+		return "📎"
+	}
+}
+
+// 辅助函数：获取笔记预览
+func getNotePreview(body string) string {
+	// 移除换行和多余空格
+	preview := strings.TrimSpace(body)
+	preview = strings.ReplaceAll(preview, "\n", " ")
+	
+	// 限制长度
+	if len(preview) > 100 {
+		preview = preview[:100] + "..."
+	}
+	
+	if preview == "" {
+		preview = "无内容"
+	}
+	
+	return preview
 }
 
 // 加载笔记

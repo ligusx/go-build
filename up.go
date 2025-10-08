@@ -578,11 +578,14 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
                         progress = 100;
                         clearInterval(interval);
                         
-                        // 上传完成
-                        setTimeout(() => {
-                            showUploadResult(`"文件" "${file.name}" "上传文件成功!"`, 'success');
-                            submitBtn.textContent = '上传完成';
-                        }, 500);
+            // 在Go模板中嵌入JavaScript
+            jsCode := `
+            // 上传完成
+            setTimeout(() => {
+                showUploadResult(\"文件 \" + file.name + \" 上传成功!\", 'success');
+                submitBtn.textContent = '上传完成';
+            }, 500);
+            `
                     }
                     
                     // 更新进度条

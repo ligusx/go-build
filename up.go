@@ -389,21 +389,21 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "文件名不能为空", http.StatusBadRequest)
 		return
 	}
-	
-	filepath := filepath.Join("up", filename)
-	
+
+	filePath := filepath.Join("up", filename)
+
 	// 检查文件是否存在
-	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		http.NotFound(w, r)
 		return
 	}
-	
+
 	// 设置响应头，触发下载
 	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
 	w.Header().Set("Content-Type", "application/octet-stream")
-	
+
 	// 提供文件下载
-	http.ServeFile(w, r, filepath)
+	http.ServeFile(w, r, filePath)
 }
 
 // ==================== 文件列表处理器 - 美化版 ====================
@@ -718,25 +718,26 @@ func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "文件名不能为空", http.StatusBadRequest)
 		return
 	}
-	
-	filepath := filepath.Join("up", filename)
-	
+
+	filePath := filepath.Join("up", filename)
+
 	// 检查文件是否存在
-	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		http.NotFound(w, r)
 		return
 	}
-	
+
 	// 删除文件
-	err := os.Remove(filepath)
+	err := os.Remove(filePath)
 	if err != nil {
 		http.Error(w, "删除文件失败: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// 重定向到文件列表页，显示成功消息
 	http.Redirect(w, r, "/files?msg=文件删除成功", http.StatusSeeOther)
 }
+
 
 // ==================== 笔记列表处理器 - 美化版 ====================
 func notesHandler(w http.ResponseWriter, r *http.Request) {

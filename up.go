@@ -407,312 +407,438 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath)
 }
 
-// ==================== 文件列表处理器 - 美化版 ====================
+// ==================== 文件列表处理器 - 美化版（带搜索功能） ====================
 func filesHandler(w http.ResponseWriter, r *http.Request) {
-	// 获取消息参数
-	msg := r.URL.Query().Get("msg")
-	
-	// 读取up目录下的文件
-	files, err := os.ReadDir("up")
-	if err != nil {
-		http.Error(w, "无法读取文件目录", http.StatusInternalServerError)
-		return
-	}
-	
-	// 生成文件列表HTML
-	fileListHTML := ""
-	fileCount := 0
-	for _, file := range files {
-		if !file.IsDir() {
-			fileCount++
-			fileInfo, _ := file.Info()
-			fileSize := formatFileSize(fileInfo.Size())
-			fileIcon := getFileIcon(file.Name())
-			
-			// 在 filesHandler 函数中找到生成删除链接的部分，修改为：
-fileListHTML += fmt.Sprintf(`
-<li>
-    <div class="file-info">
-        <div class="file-icon">%s</div>
-        <div class="file-details">
-            <div class="file-name">%s</div>
-            <div class="file-size">%s</div>
+    // 获取消息参数和搜索参数
+    msg := r.URL.Query().Get("msg")
+    searchQuery := r.URL.Query().Get("search")
+    
+    // 读取up目录下的文件
+    files, err := os.ReadDir("up")
+    if err != nil {
+        http.Error(w, "无法读取文件目录", http.StatusInternalServerError)
+        return
+    }
+    
+    // 生成文件列表HTML
+    fileListHTML := ""
+    fileCount := 0
+    filteredCount := 0
+    
+    for _, file := range files {
+        if !file.IsDir() {
+            fileCount++
+            
+            // 搜索过滤
+            if searchQuery != "" && !strings.Contains(strings.ToLower(file.Name()), strings.ToLower(searchQuery)) {
+                continue
+            }
+            
+            filteredCount++
+            fileInfo, _ := file.Info()
+            fileSize := formatFileSize(fileInfo.Size())
+            fileIcon := getFileIcon(file.Name())
+            
+            fileListHTML += fmt.Sprintf(`
+            <li>
+                <div class="file-info">
+                    <div class="file-icon">%s</div>
+                    <div class="file-details">
+                        <div class="file-name">%s</div>
+                        <div class="file-size">%s</div>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    <a href="/download/%s" class="btn btn-download" title="下载文件">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        下载
+                    </a>
+                    <a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')" title="删除文件">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        删除
+                    </a>
+                </div>
+            </li>
+            `, fileIcon, template.HTMLEscapeString(file.Name()), fileSize, 
+               url.QueryEscape(file.Name()), url.QueryEscape(file.Name()), template.HTMLEscapeString(file.Name()))
+        }
+    }
+    
+    if fileListHTML == "" {
+        if searchQuery != "" {
+            fileListHTML = `
+            <li class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <div class="empty-text">未找到匹配的文件</div>
+                <div class="empty-subtext">没有找到包含"` + template.HTMLEscapeString(searchQuery) + `"的文件</div>
+                <a href="/files" class="btn">查看所有文件</a>
+            </li>
+            `
+        } else {
+            fileListHTML = `
+            <li class="empty-state">
+                <div class="empty-icon">📁</div>
+                <div class="empty-text">暂无文件</div>
+                <div class="empty-subtext">上传您的第一个文件开始使用</div>
+                <a href="/upload" class="btn">上传文件</a>
+            </li>
+            `
+        }
+    }
+    
+    // 显示消息
+    alertHTML := ""
+    if msg != "" {
+        alertHTML = fmt.Sprintf(`<div class="alert alert-success">%s</div>`, template.HTMLEscapeString(msg))
+    }
+    
+    // 搜索框HTML
+    searchBoxHTML := `
+    <div class="search-box">
+        <form method="get" action="/files" class="search-form">
+            <div class="search-input-group">
+                <input type="text" name="search" value="` + template.HTMLEscapeString(searchQuery) + `" 
+                       placeholder="搜索文件..." class="search-input">
+                <button type="submit" class="search-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </button>
+            </div>
+            ` + func() string {
+                if searchQuery != "" {
+                    return `<a href="/files" class="search-clear">清除搜索</a>`
+                }
+                return ""
+            }() + `
+        </form>
+    </div>`
+    
+    // 构建完整的HTML
+    html := `<!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>文件管理 - 文件与笔记管理器</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                line-height: 1.6; 
+                color: #333; 
+                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                min-height: 100vh;
+            }
+            .container { 
+                max-width: 1000px; 
+                margin: 0 auto; 
+                padding: 20px; 
+            }
+            .header-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+                color: white;
+                padding: 1.5rem 2rem;
+                border-radius: 10px;
+                margin-bottom: 2rem;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .header-content h1 {
+                font-size: 2rem;
+                margin: 0;
+            }
+            .header-actions {
+                display: flex;
+                gap: 10px;
+            }
+            .btn { 
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: #2575fc; 
+                color: white; 
+                padding: 10px 20px; 
+                border-radius: 5px; 
+                text-decoration: none; 
+                font-weight: bold; 
+                transition: all 0.3s ease;
+                border: none;
+                cursor: pointer;
+                font-size: 0.9rem;
+            }
+            .btn:hover { 
+                background: #1a5fd8; 
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            }
+            .btn-secondary { 
+                background: #6c757d; 
+            }
+            .btn-secondary:hover { 
+                background: #5a6268; 
+            }
+            .btn-success { 
+                background: #28a745; 
+            }
+            .btn-success:hover { 
+                background: #218838; 
+            }
+            .btn-download {
+                background: #17a2b8;
+            }
+            .btn-download:hover {
+                background: #138496;
+            }
+            .btn-danger { 
+                background: #dc3545; 
+            }
+            .btn-danger:hover { 
+                background: #c82333; 
+            }
+            .card {
+                background: white;
+                border-radius: 10px;
+                padding: 2rem;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                margin-bottom: 2rem;
+            }
+            .card h2 {
+                color: #2575fc;
+                margin-bottom: 1.5rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 2px solid #f0f0f0;
+            }
+            .file-list { 
+                list-style: none; 
+            }
+            .file-list li { 
+                padding: 1rem; 
+                border-bottom: 1px solid #eee; 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center;
+                transition: background-color 0.2s;
+            }
+            .file-list li:hover {
+                background-color: #f8f9fa;
+            }
+            .file-list li:last-child { 
+                border-bottom: none; 
+            }
+            .file-info {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                flex: 1;
+            }
+            .file-icon {
+                font-size: 1.5rem;
+                width: 40px;
+                text-align: center;
+            }
+            .file-details {
+                flex: 1;
+            }
+            .file-name {
+                font-weight: 600;
+                color: #212529;
+                margin-bottom: 2px;
+            }
+            .file-size {
+                font-size: 0.85rem;
+                color: #6c757d;
+            }
+            .file-actions { 
+                display: flex; 
+                gap: 8px; 
+            }
+            .alert { 
+                padding: 15px; 
+                border-radius: 5px; 
+                margin-bottom: 1rem; 
+            }
+            .alert-success { 
+                background: #d4edda; 
+                color: #155724; 
+                border: 1px solid #c3e6cb; 
+            }
+            .empty-state {
+                text-align: center;
+                padding: 3rem 1rem !important;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .empty-icon {
+                font-size: 3rem;
+                opacity: 0.5;
+            }
+            .empty-text {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: #6c757d;
+            }
+            .empty-subtext {
+                color: #6c757d;
+                margin-bottom: 1rem;
+            }
+            .stats {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+            }
+            .stat-card {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 1rem;
+                border-radius: 8px;
+                flex: 1;
+                text-align: center;
+            }
+            .stat-number {
+                font-size: 1.5rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+            }
+            .stat-label {
+                font-size: 0.9rem;
+                opacity: 0.9;
+            }
+            /* 搜索框样式 */
+            .search-box {
+                margin-bottom: 1.5rem;
+            }
+            .search-form {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .search-input-group {
+                display: flex;
+                flex: 1;
+                max-width: 400px;
+                position: relative;
+            }
+            .search-input {
+                flex: 1;
+                padding: 12px 50px 12px 15px;
+                border: 2px solid #e9ecef;
+                border-radius: 25px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+                background: white;
+            }
+            .search-input:focus {
+                outline: none;
+                border-color: #2575fc;
+                box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.1);
+            }
+            .search-btn {
+                position: absolute;
+                right: 5px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: #2575fc;
+                border: none;
+                border-radius: 50%;
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            .search-btn:hover {
+                background: #1a5fd8;
+                transform: translateY(-50%) scale(1.05);
+            }
+            .search-clear {
+                color: #6c757d;
+                text-decoration: none;
+                font-size: 0.9rem;
+                padding: 8px 16px;
+                border-radius: 5px;
+                transition: all 0.3s ease;
+            }
+            .search-clear:hover {
+                color: #495057;
+                background: #f8f9fa;
+            }
+            .search-info {
+                color: #6c757d;
+                font-size: 0.9rem;
+                margin-bottom: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <header class="header-content">
+                <h1>文件管理</h1>
+                <div class="header-actions">
+                    <a href="/" class="btn btn-secondary">返回主页</a>
+                    <a href="/upload" class="btn btn-success">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        上传文件
+                    </a>
+                </div>
+            </header>
+            
+            ` + alertHTML + `
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">` + fmt.Sprintf("%d", fileCount) + `</div>
+                    <div class="stat-label">总文件数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">` + fmt.Sprintf("%d", filteredCount) + `</div>
+                    <div class="stat-label">` + func() string {
+                        if searchQuery != "" {
+                            return "匹配文件数"
+                        }
+                        return "显示文件数"
+                    }() + `</div>
+                </div>
+            </div>
+            
+            ` + searchBoxHTML + `
+            
+            ` + func() string {
+                if searchQuery != "" {
+                    return `<div class="search-info">搜索关键词: "<strong>` + template.HTMLEscapeString(searchQuery) + `</strong>" - 找到 ` + fmt.Sprintf("%d", filteredCount) + ` 个文件</div>`
+                }
+                return ""
+            }() + `
+            
+            <div class="card">
+                <h2>文件列表</h2>
+                <ul class="file-list">
+                    ` + fileListHTML + `
+                </ul>
+            </div>
         </div>
-    </div>
-    <div class="file-actions">
-        <a href="/download/%s" class="btn btn-download" title="下载文件">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            下载
-        </a>
-        <a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')" title="删除文件">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-            删除
-        </a>
-    </div>
-</li>
-`, fileIcon, file.Name(), fileSize, 
-   url.QueryEscape(file.Name()),  // 下载链接编码
-   url.QueryEscape(file.Name()),  // 删除链接编码
-   template.HTMLEscapeString(file.Name()))  // 确认对话框中的文件名
-		}
-	}
-	
-	if fileListHTML == "" {
-		fileListHTML = `
-		<li class="empty-state">
-			<div class="empty-icon">📁</div>
-			<div class="empty-text">暂无文件</div>
-			<div class="empty-subtext">上传您的第一个文件开始使用</div>
-			<a href="/upload" class="btn">上传文件</a>
-		</li>
-		`
-	}
-	
-	// 显示消息
-	alertHTML := ""
-	if msg != "" {
-		alertHTML = fmt.Sprintf(`<div class="alert alert-success">%s</div>`, msg)
-	}
-	
-	// 构建完整的HTML
-	html := `<!DOCTYPE html>
-	<html lang="zh-CN">
-	<head>
-		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>文件管理 - 文件与笔记管理器</title>
-		<style>
-			* { margin: 0; padding: 0; box-sizing: border-box; }
-			body { 
-				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-				line-height: 1.6; 
-				color: #333; 
-				background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-				min-height: 100vh;
-			}
-			.container { 
-				max-width: 1000px; 
-				margin: 0 auto; 
-				padding: 20px; 
-			}
-			.header-content {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-				color: white;
-				padding: 1.5rem 2rem;
-				border-radius: 10px;
-				margin-bottom: 2rem;
-				box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-			}
-			.header-content h1 {
-				font-size: 2rem;
-				margin: 0;
-			}
-			.header-actions {
-				display: flex;
-				gap: 10px;
-			}
-			.btn { 
-				display: inline-flex;
-				align-items: center;
-				gap: 8px;
-				background: #2575fc; 
-				color: white; 
-				padding: 10px 20px; 
-				border-radius: 5px; 
-				text-decoration: none; 
-				font-weight: bold; 
-				transition: all 0.3s ease;
-				border: none;
-				cursor: pointer;
-				font-size: 0.9rem;
-			}
-			.btn:hover { 
-				background: #1a5fd8; 
-				transform: translateY(-2px);
-				box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-			}
-			.btn-secondary { 
-				background: #6c757d; 
-			}
-			.btn-secondary:hover { 
-				background: #5a6268; 
-			}
-			.btn-success { 
-				background: #28a745; 
-			}
-			.btn-success:hover { 
-				background: #218838; 
-			}
-			.btn-download {
-				background: #17a2b8;
-			}
-			.btn-download:hover {
-				background: #138496;
-			}
-			.btn-danger { 
-				background: #dc3545; 
-			}
-			.btn-danger:hover { 
-				background: #c82333; 
-			}
-			.card {
-				background: white;
-				border-radius: 10px;
-				padding: 2rem;
-				box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-				margin-bottom: 2rem;
-			}
-			.card h2 {
-				color: #2575fc;
-				margin-bottom: 1.5rem;
-				padding-bottom: 0.5rem;
-				border-bottom: 2px solid #f0f0f0;
-			}
-			.file-list { 
-				list-style: none; 
-			}
-			.file-list li { 
-				padding: 1rem; 
-				border-bottom: 1px solid #eee; 
-				display: flex; 
-				justify-content: space-between; 
-				align-items: center;
-				transition: background-color 0.2s;
-			}
-			.file-list li:hover {
-				background-color: #f8f9fa;
-			}
-			.file-list li:last-child { 
-				border-bottom: none; 
-			}
-			.file-info {
-				display: flex;
-				align-items: center;
-				gap: 12px;
-				flex: 1;
-			}
-			.file-icon {
-				font-size: 1.5rem;
-				width: 40px;
-				text-align: center;
-			}
-			.file-details {
-				flex: 1;
-			}
-			.file-name {
-				font-weight: 600;
-				color: #212529;
-				margin-bottom: 2px;
-			}
-			.file-size {
-				font-size: 0.85rem;
-				color: #6c757d;
-			}
-			.file-actions { 
-				display: flex; 
-				gap: 8px; 
-			}
-			.alert { 
-				padding: 15px; 
-				border-radius: 5px; 
-				margin-bottom: 1rem; 
-			}
-			.alert-success { 
-				background: #d4edda; 
-				color: #155724; 
-				border: 1px solid #c3e6cb; 
-			}
-			.empty-state {
-				text-align: center;
-				padding: 3rem 1rem !important;
-				flex-direction: column;
-				gap: 1rem;
-			}
-			.empty-icon {
-				font-size: 3rem;
-				opacity: 0.5;
-			}
-			.empty-text {
-				font-size: 1.2rem;
-				font-weight: 600;
-				color: #6c757d;
-			}
-			.empty-subtext {
-				color: #6c757d;
-				margin-bottom: 1rem;
-			}
-			.stats {
-				display: flex;
-				gap: 1rem;
-				margin-bottom: 1.5rem;
-			}
-			.stat-card {
-				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-				color: white;
-				padding: 1rem;
-				border-radius: 8px;
-				flex: 1;
-				text-align: center;
-			}
-			.stat-number {
-				font-size: 1.5rem;
-				font-weight: bold;
-				margin-bottom: 0.5rem;
-			}
-			.stat-label {
-				font-size: 0.9rem;
-				opacity: 0.9;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="container">
-			<header class="header-content">
-				<h1>文件管理</h1>
-				<div class="header-actions">
-					<a href="/" class="btn btn-secondary">返回主页</a>
-					<a href="/upload" class="btn btn-success">
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-							<polyline points="17 8 12 3 7 8"></polyline>
-							<line x1="12" y1="3" x2="12" y2="15"></line>
-						</svg>
-						上传文件
-					</a>
-				</div>
-			</header>
-			
-			` + alertHTML + `
-			
-			<div class="stats">
-				<div class="stat-card">
-					<div class="stat-number">` + fmt.Sprintf("%d", fileCount) + `</div>
-					<div class="stat-label">文件数量</div>
-				</div>
-			</div>
-			
-			<div class="card">
-				<h2>文件列表</h2>
-				<ul class="file-list">
-					` + fileListHTML + `
-				</ul>
-			</div>
-		</div>
-	</body>
-	</html>`
-	
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, html)
+    </body>
+    </html>`
+    
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
+    fmt.Fprint(w, html)
 }
 
 // 删除文件处理器
@@ -759,277 +885,412 @@ func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
     http.Redirect(w, r, "/files?msg=文件 "+decodedFilename+" 删除成功", http.StatusSeeOther)
 }
 
-// ==================== 笔记列表处理器 - 美化版 ====================
+// ==================== 笔记列表处理器 - 美化版（带搜索功能） ====================
 func notesHandler(w http.ResponseWriter, r *http.Request) {
-	// 生成笔记列表HTML
-	noteListHTML := ""
-	for _, title := range noteTitles {
-		note := notes[title]
-		preview := getNotePreview(note.Body)
-		
-		noteListHTML += fmt.Sprintf(`
-		<li>
-			<div class="note-info">
-				<div class="note-title">%s</div>
-				<div class="note-preview">%s</div>
-				<div class="note-meta">创建时间: 刚刚</div>
-			</div>
-			<div class="note-actions">
-				<a href="/note/%s" class="btn btn-edit" title="编辑笔记">
-					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-						<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-					</svg>
-					编辑
-				</a>
-				<a href="/delete-note/%s" class="btn btn-danger" onclick="return confirm('确定删除笔记 %s 吗？')" title="删除笔记">
-					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<polyline points="3 6 5 6 21 6"></polyline>
-						<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-					</svg>
-					删除
-				</a>
-			</div>
-		</li>
-		`, title, preview, title, title, title)
-	}
-	
-	if noteListHTML == "" {
-		noteListHTML = `
-		<li class="empty-state">
-			<div class="empty-icon">📝</div>
-			<div class="empty-text">暂无笔记</div>
-			<div class="empty-subtext">创建您的第一个笔记开始记录</div>
-			<a href="/note/new" class="btn">新建笔记</a>
-		</li>
-		`
-	}
-	
-	// 构建完整的HTML
-	html := `<!DOCTYPE html>
-	<html lang="zh-CN">
-	<head>
-		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>笔记管理 - 文件与笔记管理器</title>
-		<style>
-			* { margin: 0; padding: 0; box-sizing: border-box; }
-			body { 
-				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-				line-height: 1.6; 
-				color: #333; 
-				background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-				min-height: 100vh;
-			}
-			.container { 
-				max-width: 1000px; 
-				margin: 0 auto; 
-				padding: 20px; 
-			}
-			.header-content {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-				color: white;
-				padding: 1.5rem 2rem;
-				border-radius: 10px;
-				margin-bottom: 2rem;
-				box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-			}
-			.header-content h1 {
-				font-size: 2rem;
-				margin: 0;
-			}
-			.header-actions {
-				display: flex;
-				gap: 10px;
-			}
-			.btn { 
-				display: inline-flex;
-				align-items: center;
-				gap: 8px;
-				background: #2575fc; 
-				color: white; 
-				padding: 10px 20px; 
-				border-radius: 5px; 
-				text-decoration: none; 
-				font-weight: bold; 
-				transition: all 0.3s ease;
-				border: none;
-				cursor: pointer;
-				font-size: 0.9rem;
-			}
-			.btn:hover { 
-				background: #1a5fd8; 
-				transform: translateY(-2px);
-				box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-			}
-			.btn-secondary { 
-				background: #6c757d; 
-			}
-			.btn-secondary:hover { 
-				background: #5a6268; 
-			}
-			.btn-success { 
-				background: #28a745; 
-			}
-			.btn-success:hover { 
-				background: #218838; 
-			}
-			.btn-edit {
-				background: #ffc107;
-				color: #212529;
-			}
-			.btn-edit:hover {
-				background: #e0a800;
-			}
-			.btn-danger { 
-				background: #dc3545; 
-			}
-			.btn-danger:hover { 
-				background: #c82333; 
-			}
-			.card {
-				background: white;
-				border-radius: 10px;
-				padding: 2rem;
-				box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-				margin-bottom: 2rem;
-			}
-			.card h2 {
-				color: #2575fc;
-				margin-bottom: 1.5rem;
-				padding-bottom: 0.5rem;
-				border-bottom: 2px solid #f0f0f0;
-			}
-			.note-list { 
-				list-style: none; 
-			}
-			.note-list li { 
-				padding: 1.5rem; 
-				border-bottom: 1px solid #eee; 
-				display: flex; 
-				justify-content: space-between; 
-				align-items: flex-start;
-				transition: background-color 0.2s;
-				border-radius: 8px;
-				margin-bottom: 0.5rem;
-			}
-			.note-list li:hover {
-				background-color: #f8f9fa;
-				box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-			}
-			.note-list li:last-child { 
-				border-bottom: none; 
-				margin-bottom: 0;
-			}
-			.note-info {
-				flex: 1;
-				margin-right: 1rem;
-			}
-			.note-title {
-				font-size: 1.2rem;
-				font-weight: 600;
-				color: #212529;
-				margin-bottom: 0.5rem;
-			}
-			.note-preview {
-				color: #6c757d;
-				font-size: 0.95rem;
-				line-height: 1.4;
-				margin-bottom: 0.5rem;
-				display: -webkit-box;
-				-webkit-line-clamp: 2;
-				-webkit-box-orient: vertical;
-				overflow: hidden;
-			}
-			.note-meta {
-				font-size: 0.8rem;
-				color: #adb5bd;
-			}
-			.note-actions { 
-				display: flex; 
-				gap: 8px; 
-			}
-			.empty-state {
-				text-align: center;
-				padding: 3rem 1rem !important;
-				flex-direction: column;
-				gap: 1rem;
-			}
-			.empty-icon {
-				font-size: 3rem;
-				opacity: 0.5;
-			}
-			.empty-text {
-				font-size: 1.2rem;
-				font-weight: 600;
-				color: #6c757d;
-			}
-			.empty-subtext {
-				color: #6c757d;
-				margin-bottom: 1rem;
-			}
-			.stats {
-				display: flex;
-				gap: 1rem;
-				margin-bottom: 1.5rem;
-			}
-			.stat-card {
-				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-				color: white;
-				padding: 1rem;
-				border-radius: 8px;
-				flex: 1;
-				text-align: center;
-			}
-			.stat-number {
-				font-size: 1.5rem;
-				font-weight: bold;
-				margin-bottom: 0.5rem;
-			}
-			.stat-label {
-				font-size: 0.9rem;
-				opacity: 0.9;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="container">
-			<header class="header-content">
-				<h1>笔记管理</h1>
-				<div class="header-actions">
-					<a href="/" class="btn btn-secondary">返回主页</a>
-					<a href="/note/new" class="btn btn-success">
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<line x1="12" y1="5" x2="12" y2="19"></line>
-							<line x1="5" y1="12" x2="19" y2="12"></line>
-						</svg>
-						新建笔记
-					</a>
-				</div>
-			</header>
-			
-			<div class="stats">
-				<div class="stat-card">
-					<div class="stat-number">` + fmt.Sprintf("%d", len(noteTitles)) + `</div>
-					<div class="stat-label">笔记数量</div>
-				</div>
-			</div>
-			
-			<div class="card">
-				<h2>笔记列表</h2>
-				<ul class="note-list">
-					` + noteListHTML + `
-				</ul>
-			</div>
-		</div>
-	</body>
-	</html>`
-	
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, html)
+    // 获取搜索参数
+    searchQuery := r.URL.Query().Get("search")
+    
+    // 生成笔记列表HTML
+    noteListHTML := ""
+    filteredCount := 0
+    
+    for _, title := range noteTitles {
+        note := notes[title]
+        preview := getNotePreview(note.Body)
+        
+        // 搜索过滤（搜索标题和内容）
+        if searchQuery != "" {
+            titleMatch := strings.Contains(strings.ToLower(title), strings.ToLower(searchQuery))
+            bodyMatch := strings.Contains(strings.ToLower(note.Body), strings.ToLower(searchQuery))
+            if !titleMatch && !bodyMatch {
+                continue
+            }
+        }
+        
+        filteredCount++
+        noteListHTML += fmt.Sprintf(`
+        <li>
+            <div class="note-info">
+                <div class="note-title">%s</div>
+                <div class="note-preview">%s</div>
+                <div class="note-meta">创建时间: 刚刚</div>
+            </div>
+            <div class="note-actions">
+                <a href="/note/%s" class="btn btn-edit" title="编辑笔记">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    编辑
+                </a>
+                <a href="/delete-note/%s" class="btn btn-danger" onclick="return confirm('确定删除笔记 %s 吗？')" title="删除笔记">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    删除
+                </a>
+            </div>
+        </li>
+        `, template.HTMLEscapeString(title), template.HTMLEscapeString(preview), 
+           url.QueryEscape(title), url.QueryEscape(title), template.HTMLEscapeString(title))
+    }
+    
+    if noteListHTML == "" {
+        if searchQuery != "" {
+            noteListHTML = `
+            <li class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <div class="empty-text">未找到匹配的笔记</div>
+                <div class="empty-subtext">没有找到包含"` + template.HTMLEscapeString(searchQuery) + `"的笔记</div>
+                <a href="/notes" class="btn">查看所有笔记</a>
+            </li>
+            `
+        } else {
+            noteListHTML = `
+            <li class="empty-state">
+                <div class="empty-icon">📝</div>
+                <div class="empty-text">暂无笔记</div>
+                <div class="empty-subtext">创建您的第一个笔记开始记录</div>
+                <a href="/note/new" class="btn">新建笔记</a>
+            </li>
+            `
+        }
+    }
+    
+    // 搜索框HTML
+    searchBoxHTML := `
+    <div class="search-box">
+        <form method="get" action="/notes" class="search-form">
+            <div class="search-input-group">
+                <input type="text" name="search" value="` + template.HTMLEscapeString(searchQuery) + `" 
+                       placeholder="搜索笔记标题或内容..." class="search-input">
+                <button type="submit" class="search-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </button>
+            </div>
+            ` + func() string {
+                if searchQuery != "" {
+                    return `<a href="/notes" class="search-clear">清除搜索</a>`
+                }
+                return ""
+            }() + `
+        </form>
+    </div>`
+    
+    // 构建完整的HTML
+    html := `<!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>笔记管理 - 文件与笔记管理器</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                line-height: 1.6; 
+                color: #333; 
+                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                min-height: 100vh;
+            }
+            .container { 
+                max-width: 1000px; 
+                margin: 0 auto; 
+                padding: 20px; 
+            }
+            .header-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+                color: white;
+                padding: 1.5rem 2rem;
+                border-radius: 10px;
+                margin-bottom: 2rem;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .header-content h1 {
+                font-size: 2rem;
+                margin: 0;
+            }
+            .header-actions {
+                display: flex;
+                gap: 10px;
+            }
+            .btn { 
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: #2575fc; 
+                color: white; 
+                padding: 10px 20px; 
+                border-radius: 5px; 
+                text-decoration: none; 
+                font-weight: bold; 
+                transition: all 0.3s ease;
+                border: none;
+                cursor: pointer;
+                font-size: 0.9rem;
+            }
+            .btn:hover { 
+                background: #1a5fd8; 
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            }
+            .btn-secondary { 
+                background: #6c757d; 
+            }
+            .btn-secondary:hover { 
+                background: #5a6268; 
+            }
+            .btn-success { 
+                background: #28a745; 
+            }
+            .btn-success:hover { 
+                background: #218838; 
+            }
+            .btn-edit {
+                background: #ffc107;
+                color: #212529;
+            }
+            .btn-edit:hover {
+                background: #e0a800;
+            }
+            .btn-danger { 
+                background: #dc3545; 
+            }
+            .btn-danger:hover { 
+                background: #c82333; 
+            }
+            .card {
+                background: white;
+                border-radius: 10px;
+                padding: 2rem;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                margin-bottom: 2rem;
+            }
+            .card h2 {
+                color: #2575fc;
+                margin-bottom: 1.5rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 2px solid #f0f0f0;
+            }
+            .note-list { 
+                list-style: none; 
+            }
+            .note-list li { 
+                padding: 1.5rem; 
+                border-bottom: 1px solid #eee; 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: flex-start;
+                transition: background-color 0.2s;
+                border-radius: 8px;
+                margin-bottom: 0.5rem;
+            }
+            .note-list li:hover {
+                background-color: #f8f9fa;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            }
+            .note-list li:last-child { 
+                border-bottom: none; 
+                margin-bottom: 0;
+            }
+            .note-info {
+                flex: 1;
+                margin-right: 1rem;
+            }
+            .note-title {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: #212529;
+                margin-bottom: 0.5rem;
+            }
+            .note-preview {
+                color: #6c757d;
+                font-size: 0.95rem;
+                line-height: 1.4;
+                margin-bottom: 0.5rem;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            .note-meta {
+                font-size: 0.8rem;
+                color: #adb5bd;
+            }
+            .note-actions { 
+                display: flex; 
+                gap: 8px; 
+            }
+            .empty-state {
+                text-align: center;
+                padding: 3rem 1rem !important;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .empty-icon {
+                font-size: 3rem;
+                opacity: 0.5;
+            }
+            .empty-text {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: #6c757d;
+            }
+            .empty-subtext {
+                color: #6c757d;
+                margin-bottom: 1rem;
+            }
+            .stats {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+            }
+            .stat-card {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 1rem;
+                border-radius: 8px;
+                flex: 1;
+                text-align: center;
+            }
+            .stat-number {
+                font-size: 1.5rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+            }
+            .stat-label {
+                font-size: 0.9rem;
+                opacity: 0.9;
+            }
+            /* 搜索框样式 */
+            .search-box {
+                margin-bottom: 1.5rem;
+            }
+            .search-form {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .search-input-group {
+                display: flex;
+                flex: 1;
+                max-width: 400px;
+                position: relative;
+            }
+            .search-input {
+                flex: 1;
+                padding: 12px 50px 12px 15px;
+                border: 2px solid #e9ecef;
+                border-radius: 25px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+                background: white;
+            }
+            .search-input:focus {
+                outline: none;
+                border-color: #2575fc;
+                box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.1);
+            }
+            .search-btn {
+                position: absolute;
+                right: 5px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: #2575fc;
+                border: none;
+                border-radius: 50%;
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            .search-btn:hover {
+                background: #1a5fd8;
+                transform: translateY(-50%) scale(1.05);
+            }
+            .search-clear {
+                color: #6c757d;
+                text-decoration: none;
+                font-size: 0.9rem;
+                padding: 8px 16px;
+                border-radius: 5px;
+                transition: all 0.3s ease;
+            }
+            .search-clear:hover {
+                color: #495057;
+                background: #f8f9fa;
+            }
+            .search-info {
+                color: #6c757d;
+                font-size: 0.9rem;
+                margin-bottom: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <header class="header-content">
+                <h1>笔记管理</h1>
+                <div class="header-actions">
+                    <a href="/" class="btn btn-secondary">返回主页</a>
+                    <a href="/note/new" class="btn btn-success">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        新建笔记
+                    </a>
+                </div>
+            </header>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">` + fmt.Sprintf("%d", len(noteTitles)) + `</div>
+                    <div class="stat-label">总笔记数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">` + fmt.Sprintf("%d", filteredCount) + `</div>
+                    <div class="stat-label">` + func() string {
+                        if searchQuery != "" {
+                            return "匹配笔记数"
+                        }
+                        return "显示笔记数"
+                    }() + `</div>
+                </div>
+            </div>
+            
+            ` + searchBoxHTML + `
+            
+            ` + func() string {
+                if searchQuery != "" {
+                    return `<div class="search-info">搜索关键词: "<strong>` + template.HTMLEscapeString(searchQuery) + `</strong>" - 找到 ` + fmt.Sprintf("%d", filteredCount) + ` 个笔记</div>`
+                }
+                return ""
+            }() + `
+            
+            <div class="card">
+                <h2>笔记列表</h2>
+                <ul class="note-list">
+                    ` + noteListHTML + `
+                </ul>
+            </div>
+        </div>
+    </body>
+    </html>`
+    
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
+    fmt.Fprint(w, html)
 }
 
 // ==================== 笔记编辑器处理器 - 美化版 ====================

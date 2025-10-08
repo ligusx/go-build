@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+    "net/url" 
 	"os"
 	"path/filepath"
 	"strings"
@@ -428,34 +429,38 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 			fileSize := formatFileSize(fileInfo.Size())
 			fileIcon := getFileIcon(file.Name())
 			
-			fileListHTML += fmt.Sprintf(`
-			<li>
-				<div class="file-info">
-					<div class="file-icon">%s</div>
-					<div class="file-details">
-						<div class="file-name">%s</div>
-						<div class="file-size">%s</div>
-					</div>
-				</div>
-				<div class="file-actions">
-					<a href="/download/%s" class="btn btn-download" title="下载文件">
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-							<polyline points="7 10 12 15 17 10"></polyline>
-							<line x1="12" y1="15" x2="12" y2="3"></line>
-						</svg>
-						下载
-					</a>
-					<a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')" title="删除文件">
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<polyline points="3 6 5 6 21 6"></polyline>
-							<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-						</svg>
-						删除
-					</a>
-				</div>
-			</li>
-			`, fileIcon, file.Name(), fileSize, file.Name(), file.Name(), file.Name())
+			// 在 filesHandler 函数中找到生成删除链接的部分，修改为：
+fileListHTML += fmt.Sprintf(`
+<li>
+    <div class="file-info">
+        <div class="file-icon">%s</div>
+        <div class="file-details">
+            <div class="file-name">%s</div>
+            <div class="file-size">%s</div>
+        </div>
+    </div>
+    <div class="file-actions">
+        <a href="/download/%s" class="btn btn-download" title="下载文件">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            下载
+        </a>
+        <a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')" title="删除文件">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            删除
+        </a>
+    </div>
+</li>
+`, fileIcon, file.Name(), fileSize, 
+   url.QueryEscape(file.Name()),  // 下载链接编码
+   url.QueryEscape(file.Name()),  // 删除链接编码
+   template.HTMLEscapeString(file.Name()))  // 确认对话框中的文件名
 		}
 	}
 	
@@ -712,29 +717,46 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 
 // 删除文件处理器
 func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
-	filename := strings.TrimPrefix(r.URL.Path, "/delete-file/")
-	if filename == "" {
-		http.Error(w, "文件名不能为空", http.StatusBadRequest)
-		return
-	}
-	
-	filepath := filepath.Join("up", filename)
-	
-	// 检查文件是否存在
-	if _, err := os.Stat(filepath); os.IsNotExist(err) {
-		http.NotFound(w, r)
-		return
-	}
-	
-	// 删除文件
-	err := os.Remove(filepath)
-	if err != nil {
-		http.Error(w, "删除文件失败: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	// 重定向到文件列表页，显示成功消息
-	http.Redirect(w, r, "/files?msg=文件删除成功", http.StatusSeeOther)
+    // 获取完整的URL路径
+    path := r.URL.Path
+    
+    // 确保路径以/delete-file/开头
+    if !strings.HasPrefix(path, "/delete-file/") {
+        http.Error(w, "无效的路径", http.StatusBadRequest)
+        return
+    }
+    
+    // 提取文件名（保留原始编码）
+    filename := strings.TrimPrefix(path, "/delete-file/")
+    if filename == "" {
+        http.Error(w, "文件名不能为空", http.StatusBadRequest)
+        return
+    }
+    
+    // 解码URL编码的文件名
+    decodedFilename, err := url.QueryUnescape(filename)
+    if err != nil {
+        // 如果解码失败，使用原始文件名
+        decodedFilename = filename
+    }
+    
+    filepath := filepath.Join("up", decodedFilename)
+    
+    // 检查文件是否存在
+    if _, err := os.Stat(filepath); os.IsNotExist(err) {
+        http.NotFound(w, r)
+        return
+    }
+    
+    // 删除文件
+    err = os.Remove(filepath)
+    if err != nil {
+        http.Error(w, "删除文件失败: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+    
+    // 重定向到文件列表页，显示成功消息
+    http.Redirect(w, r, "/files?msg=文件 "+decodedFilename+" 删除成功", http.StatusSeeOther)
 }
 
 // ==================== 笔记列表处理器 - 美化版 ====================

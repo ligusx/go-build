@@ -157,231 +157,237 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// 显示上传表单
+	// ==================== 显示上传表单 - 美化版 ====================
 	tmpl := `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>上传文件</title>
-    <style>
-        :root {
-            --primary: #4361ee;
-            --primary-light: #4895ef;
-            --secondary: #3f37c9;
-            --success: #4cc9f0;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --gray: #6c757d;
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --transition: all 0.3s ease;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        
-        .container {
-            width: 100%;
-            max-width: 500px;
-            background-color: white;
-            border-radius: 16px;
-            box-shadow: var(--shadow);
-            overflow: hidden;
-            animation: fadeIn 0.5s ease-out;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        header {
-            background: linear-gradient(to right, var(--primary), var(--primary-light));
-            color: white;
-            padding: 24px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        h1 {
-            font-size: 1.8rem;
-            font-weight: 600;
-        }
-        
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: rgba(255, 255, 255, 0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: 500;
-            transition: var(--transition);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        
-        .btn:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-        
-        .card {
-            padding: 30px;
-        }
-        
-        .form-group {
-            margin-bottom: 25px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: var(--dark);
-        }
-        
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            width: 100%;
-        }
-        
-        .file-input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px dashed #d1d5db;
-            border-radius: 8px;
-            background-color: #f9fafb;
-            cursor: pointer;
-            transition: var(--transition);
-            font-size: 1rem;
-        }
-        
-        .file-input:hover {
-            border-color: var(--primary-light);
-            background-color: #f0f4ff;
-        }
-        
-        .file-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
-        }
-        
-        .submit-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(to right, var(--primary), var(--primary-light));
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-            box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3);
-        }
-        
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(67, 97, 238, 0.4);
-        }
-        
-        .submit-btn:active {
-            transform: translateY(0);
-        }
-        
-        .upload-icon {
-            display: block;
-            text-align: center;
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: var(--primary);
-        }
-        
-        .file-info {
-            margin-top: 10px;
-            font-size: 0.9rem;
-            color: var(--gray);
-            text-align: center;
-        }
-        
-        @media (max-width: 576px) {
-            header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
-            }
-            
-            .card {
-                padding: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>上传文件</h1>
-            <a href="/files" class="btn">返回文件列表</a>
-        </header>
-        
-        <div class="card">
-            <div class="upload-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
-                </svg>
-            </div>
-            
-            <form action="/upload" method="post" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="file">选择文件</label>
-                    <div class="file-input-wrapper">
-                        <input type="file" name="file" id="file" class="file-input" required>
-                    </div>
-                    <div class="file-info">支持所有文件类型，最大文件大小：10MB</div>
-                </div>
-                <button type="submit" class="submit-btn">上传文件</button>
-            </form>
-        </div>
-    </div>
+	<!DOCTYPE html>
+	<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>上传文件 - 文件与笔记管理器</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { 
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+				line-height: 1.6; 
+				color: #333; 
+				background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+				min-height: 100vh;
+			}
+			.container { 
+				max-width: 800px; 
+				margin: 0 auto; 
+				padding: 20px; 
+			}
+			.header-content {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+				color: white;
+				padding: 1.5rem 2rem;
+				border-radius: 10px;
+				margin-bottom: 2rem;
+				box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+			}
+			.header-content h1 {
+				font-size: 2rem;
+				margin: 0;
+			}
+			.btn { 
+				display: inline-block; 
+				background: #2575fc; 
+				color: white; 
+				padding: 10px 20px; 
+				border-radius: 5px; 
+				text-decoration: none; 
+				font-weight: bold; 
+				transition: all 0.3s ease;
+				border: none;
+				cursor: pointer;
+				font-size: 1rem;
+			}
+			.btn:hover { 
+				background: #1a5fd8; 
+				transform: translateY(-2px);
+				box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+			}
+			.btn-secondary { 
+				background: #6c757d; 
+			}
+			.btn-secondary:hover { 
+				background: #5a6268; 
+			}
+			.card {
+				background: white;
+				border-radius: 10px;
+				padding: 2rem;
+				box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+				margin-bottom: 2rem;
+			}
+			.card h2 {
+				color: #2575fc;
+				margin-bottom: 1.5rem;
+				padding-bottom: 0.5rem;
+				border-bottom: 2px solid #f0f0f0;
+			}
+			.form-group { 
+				margin-bottom: 1.5rem; 
+			}
+			.form-group label { 
+				display: block; 
+				margin-bottom: 0.5rem; 
+				font-weight: 600;
+				color: #495057;
+			}
+			.form-control { 
+				width: 100%; 
+				padding: 12px 15px; 
+				border: 2px solid #e9ecef; 
+				border-radius: 8px; 
+				font-size: 1rem; 
+				transition: border-color 0.3s, box-shadow 0.3s;
+				font-family: inherit;
+			}
+			.form-control:focus {
+				outline: none;
+				border-color: #2575fc;
+				box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.1);
+			}
+			.file-input-wrapper {
+				position: relative;
+				display: inline-block;
+				width: 100%;
+			}
+			.file-input-wrapper input[type="file"] {
+				position: absolute;
+				left: 0;
+				top: 0;
+				opacity: 0;
+				width: 100%;
+				height: 100%;
+				cursor: pointer;
+			}
+			.file-input-custom {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 2rem;
+				border: 2px dashed #dee2e6;
+				border-radius: 8px;
+				background: #f8f9fa;
+				transition: all 0.3s ease;
+				text-align: center;
+				color: #6c757d;
+				font-weight: 500;
+			}
+			.file-input-custom:hover {
+				border-color: #2575fc;
+				background: #e7f1ff;
+				color: #2575fc;
+			}
+			.file-input-custom.has-file {
+				border-color: #28a745;
+				background: #f0fff4;
+				color: #28a745;
+			}
+			.upload-icon {
+				font-size: 2rem;
+				margin-bottom: 0.5rem;
+			}
+			.form-actions {
+				display: flex;
+				justify-content: flex-end;
+				gap: 10px;
+				margin-top: 1.5rem;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<header class="header-content">
+				<h1>上传文件</h1>
+				<a href="/files" class="btn btn-secondary">返回文件列表</a>
+			</header>
+			
+			<div class="card">
+				<h2>选择要上传的文件</h2>
+				<form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+					<div class="form-group">
+						<label for="file">选择文件:</label>
+						<div class="file-input-wrapper">
+							<input type="file" name="file" id="file" class="form-control" required 
+								   onchange="updateFileName(this)">
+							<div class="file-input-custom" id="fileInputCustom">
+								<div>
+									<div class="upload-icon">📁</div>
+									<div>点击选择文件或拖拽文件到这里</div>
+									<div style="font-size: 0.9rem; margin-top: 0.5rem;">支持所有类型文件，最大32MB</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="btn">上传文件</button>
+					</div>
+				</form>
+			</div>
+		</div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const fileInput = document.getElementById('file');
-            const fileInfo = document.querySelector('.file-info');
-            
-            fileInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    const fileName = this.files[0].name;
-                    const fileSize = (this.files[0].size / (1024 * 1024)).toFixed(2);
-                    fileInfo.textContent = `已选择: ${fileName} (${fileSize} MB)`;
-                    fileInfo.style.color = '#4361ee';
-                } else {
-                    fileInfo.textContent = '支持所有文件类型，最大文件大小：10MB';
-                    fileInfo.style.color = '#6c757d';
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+		<script>
+			function updateFileName(input) {
+				const customInput = document.getElementById('fileInputCustom');
+				if (input.files.length > 0) {
+					const fileName = input.files[0].name;
+					customInput.innerHTML = `
+						<div>
+							<div class="upload-icon">✅</div>
+							<div>已选择文件: <strong>${fileName}</strong></div>
+							<div style="font-size: 0.9rem; margin-top: 0.5rem;">点击重新选择</div>
+						</div>
+					`;
+					customInput.classList.add('has-file');
+				} else {
+					customInput.innerHTML = `
+						<div>
+							<div class="upload-icon">📁</div>
+							<div>点击选择文件或拖拽文件到这里</div>
+							<div style="font-size: 0.9rem; margin-top: 0.5rem;">支持所有类型文件，最大32MB</div>
+						</div>
+					`;
+					customInput.classList.remove('has-file');
+				}
+			}
+
+			// 拖拽功能
+			const fileInput = document.getElementById('file');
+			const customInput = document.getElementById('fileInputCustom');
+			
+			customInput.addEventListener('dragover', (e) => {
+				e.preventDefault();
+				customInput.style.borderColor = '#2575fc';
+				customInput.style.background = '#e7f1ff';
+			});
+			
+			customInput.addEventListener('dragleave', (e) => {
+				e.preventDefault();
+				if (!customInput.classList.contains('has-file')) {
+					customInput.style.borderColor = '#dee2e6';
+					customInput.style.background = '#f8f9fa';
+				}
+			});
+			
+			customInput.addEventListener('drop', (e) => {
+				e.preventDefault();
+				const files = e.dataTransfer.files;
+				if (files.length > 0) {
+					fileInput.files = files;
+					updateFileName(fileInput);
+				}
+			});
+		</script>
+	</body>
+	</html>
 	`
 	
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -412,7 +418,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath)
 }
 
-// 文件列表处理器
+// ==================== 文件列表处理器 - 美化版 ====================
 func filesHandler(w http.ResponseWriter, r *http.Request) {
 	// 获取消息参数
 	msg := r.URL.Query().Get("msg")
@@ -428,20 +434,50 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 	fileListHTML := ""
 	for _, file := range files {
 		if !file.IsDir() {
+			fileInfo, _ := file.Info()
+			fileSize := formatFileSize(fileInfo.Size())
+			fileIcon := getFileIcon(file.Name())
+			
 			fileListHTML += fmt.Sprintf(`
 			<li>
-				<span>%s</span>
+				<div class="file-info">
+					<div class="file-icon">%s</div>
+					<div class="file-details">
+						<div class="file-name">%s</div>
+						<div class="file-size">%s</div>
+					</div>
+				</div>
 				<div class="file-actions">
-					<a href="/download/%s" class="btn">下载</a>
-					<a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')">删除</a>
+					<a href="/download/%s" class="btn btn-download" title="下载文件">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+							<polyline points="7 10 12 15 17 10"></polyline>
+							<line x1="12" y1="15" x2="12" y2="3"></line>
+						</svg>
+						下载
+					</a>
+					<a href="/delete-file/%s" class="btn btn-danger" onclick="return confirm('确定删除文件 %s 吗？')" title="删除文件">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<polyline points="3 6 5 6 21 6"></polyline>
+							<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+						</svg>
+						删除
+					</a>
 				</div>
 			</li>
-			`, file.Name(), file.Name(), file.Name(), file.Name())
+			`, fileIcon, file.Name(), fileSize, file.Name(), file.Name(), file.Name())
 		}
 	}
 	
 	if fileListHTML == "" {
-		fileListHTML = "<li>暂无文件</li>"
+		fileListHTML = `
+		<li class="empty-state">
+			<div class="empty-icon">📁</div>
+			<div class="empty-text">暂无文件</div>
+			<div class="empty-subtext">上传您的第一个文件开始使用</div>
+			<a href="/upload" class="btn">上传文件</a>
+		</li>
+		`
 	}
 	
 	// 显示消息
@@ -456,19 +492,219 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>文件管理</title>
+		<title>文件管理 - 文件与笔记管理器</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { 
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+				line-height: 1.6; 
+				color: #333; 
+				background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+				min-height: 100vh;
+			}
+			.container { 
+				max-width: 1000px; 
+				margin: 0 auto; 
+				padding: 20px; 
+			}
+			.header-content {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+				color: white;
+				padding: 1.5rem 2rem;
+				border-radius: 10px;
+				margin-bottom: 2rem;
+				box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+			}
+			.header-content h1 {
+				font-size: 2rem;
+				margin: 0;
+			}
+			.header-actions {
+				display: flex;
+				gap: 10px;
+			}
+			.btn { 
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				background: #2575fc; 
+				color: white; 
+				padding: 10px 20px; 
+				border-radius: 5px; 
+				text-decoration: none; 
+				font-weight: bold; 
+				transition: all 0.3s ease;
+				border: none;
+				cursor: pointer;
+				font-size: 0.9rem;
+			}
+			.btn:hover { 
+				background: #1a5fd8; 
+				transform: translateY(-2px);
+				box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+			}
+			.btn-secondary { 
+				background: #6c757d; 
+			}
+			.btn-secondary:hover { 
+				background: #5a6268; 
+			}
+			.btn-success { 
+				background: #28a745; 
+			}
+			.btn-success:hover { 
+				background: #218838; 
+			}
+			.btn-download {
+				background: #17a2b8;
+			}
+			.btn-download:hover {
+				background: #138496;
+			}
+			.btn-danger { 
+				background: #dc3545; 
+			}
+			.btn-danger:hover { 
+				background: #c82333; 
+			}
+			.card {
+				background: white;
+				border-radius: 10px;
+				padding: 2rem;
+				box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+				margin-bottom: 2rem;
+			}
+			.card h2 {
+				color: #2575fc;
+				margin-bottom: 1.5rem;
+				padding-bottom: 0.5rem;
+				border-bottom: 2px solid #f0f0f0;
+			}
+			.file-list { 
+				list-style: none; 
+			}
+			.file-list li { 
+				padding: 1rem; 
+				border-bottom: 1px solid #eee; 
+				display: flex; 
+				justify-content: space-between; 
+				align-items: center;
+				transition: background-color 0.2s;
+			}
+			.file-list li:hover {
+				background-color: #f8f9fa;
+			}
+			.file-list li:last-child { 
+				border-bottom: none; 
+			}
+			.file-info {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				flex: 1;
+			}
+			.file-icon {
+				font-size: 1.5rem;
+				width: 40px;
+				text-align: center;
+			}
+			.file-details {
+				flex: 1;
+			}
+			.file-name {
+				font-weight: 600;
+				color: #212529;
+				margin-bottom: 2px;
+			}
+			.file-size {
+				font-size: 0.85rem;
+				color: #6c757d;
+			}
+			.file-actions { 
+				display: flex; 
+				gap: 8px; 
+			}
+			.alert { 
+				padding: 15px; 
+				border-radius: 5px; 
+				margin-bottom: 1rem; 
+			}
+			.alert-success { 
+				background: #d4edda; 
+				color: #155724; 
+				border: 1px solid #c3e6cb; 
+			}
+			.empty-state {
+				text-align: center;
+				padding: 3rem 1rem !important;
+				flex-direction: column;
+				gap: 1rem;
+			}
+			.empty-icon {
+				font-size: 3rem;
+				opacity: 0.5;
+			}
+			.empty-text {
+				font-size: 1.2rem;
+				font-weight: 600;
+				color: #6c757d;
+			}
+			.empty-subtext {
+				color: #6c757d;
+				margin-bottom: 1rem;
+			}
+			.stats {
+				display: flex;
+				gap: 1rem;
+				margin-bottom: 1.5rem;
+			}
+			.stat-card {
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				color: white;
+				padding: 1rem;
+				border-radius: 8px;
+				flex: 1;
+				text-align: center;
+			}
+			.stat-number {
+				font-size: 1.5rem;
+				font-weight: bold;
+				margin-bottom: 0.5rem;
+			}
+			.stat-label {
+				font-size: 0.9rem;
+				opacity: 0.9;
+			}
+		</style>
 	</head>
 	<body>
 		<div class="container">
-			<header>
+			<header class="header-content">
 				<h1>文件管理</h1>
-				<div>
+				<div class="header-actions">
 					<a href="/" class="btn btn-secondary">返回主页</a>
-					<a href="/upload" class="btn">上传文件</a>
+					<a href="/upload" class="btn btn-success">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+							<polyline points="17 8 12 3 7 8"></polyline>
+							<line x1="12" y1="3" x2="12" y2="15"></line>
+						</svg>
+						上传文件
+					</a>
 				</div>
 			</header>
 			
 			%s
+			
+			<div class="stats">
+				<div class="stat-card">
+					<div class="stat-number">%d</div>
+					<div class="stat-label">文件数量</div>
+				</div>
+			</div>
 			
 			<div class="card">
 				<h2>文件列表</h2>
@@ -479,7 +715,7 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 		</div>
 	</body>
 	</html>
-	`, alertHTML, fileListHTML)
+	`, alertHTML, len(files), fileListHTML)
 	
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, tmpl)
@@ -512,24 +748,50 @@ func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/files?msg=文件删除成功", http.StatusSeeOther)
 }
 
-// 笔记列表处理器
+// ==================== 笔记列表处理器 - 美化版 ====================
 func notesHandler(w http.ResponseWriter, r *http.Request) {
 	// 生成笔记列表HTML
 	noteListHTML := ""
 	for _, title := range noteTitles {
+		note := notes[title]
+		preview := getNotePreview(note.Body)
+		
 		noteListHTML += fmt.Sprintf(`
 		<li>
-			<span>%s</span>
+			<div class="note-info">
+				<div class="note-title">%s</div>
+				<div class="note-preview">%s</div>
+				<div class="note-meta">创建时间: 刚刚</div>
+			</div>
 			<div class="note-actions">
-				<a href="/note/%s" class="btn">编辑</a>
-				<a href="/delete-note/%s" class="btn btn-danger" onclick="return confirm('确定删除笔记 %s 吗？')">删除</a>
+				<a href="/note/%s" class="btn btn-edit" title="编辑笔记">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+						<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+					</svg>
+					编辑
+				</a>
+				<a href="/delete-note/%s" class="btn btn-danger" onclick="return confirm('确定删除笔记 %s 吗？')" title="删除笔记">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<polyline points="3 6 5 6 21 6"></polyline>
+						<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+					</svg>
+					删除
+				</a>
 			</div>
 		</li>
-		`, title, title, title, title)
+		`, title, preview, title, title, title)
 	}
 	
 	if noteListHTML == "" {
-		noteListHTML = "<li>暂无笔记</li>"
+		noteListHTML = `
+		<li class="empty-state">
+			<div class="empty-icon">📝</div>
+			<div class="empty-text">暂无笔记</div>
+			<div class="empty-subtext">创建您的第一个笔记开始记录</div>
+			<a href="/note/new" class="btn">新建笔记</a>
+		</li>
+		`
 	}
 	
 	tmpl := fmt.Sprintf(`
@@ -538,17 +800,212 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>笔记管理</title>
+		<title>笔记管理 - 文件与笔记管理器</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { 
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+				line-height: 1.6; 
+				color: #333; 
+				background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+				min-height: 100vh;
+			}
+			.container { 
+				max-width: 1000px; 
+				margin: 0 auto; 
+				padding: 20px; 
+			}
+			.header-content {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+				color: white;
+				padding: 1.5rem 2rem;
+				border-radius: 10px;
+				margin-bottom: 2rem;
+				box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+			}
+			.header-content h1 {
+				font-size: 2rem;
+				margin: 0;
+			}
+			.header-actions {
+				display: flex;
+				gap: 10px;
+			}
+			.btn { 
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				background: #2575fc; 
+				color: white; 
+				padding: 10px 20px; 
+				border-radius: 5px; 
+				text-decoration: none; 
+				font-weight: bold; 
+				transition: all 0.3s ease;
+				border: none;
+				cursor: pointer;
+				font-size: 0.9rem;
+			}
+			.btn:hover { 
+				background: #1a5fd8; 
+				transform: translateY(-2px);
+				box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+			}
+			.btn-secondary { 
+				background: #6c757d; 
+			}
+			.btn-secondary:hover { 
+				background: #5a6268; 
+			}
+			.btn-success { 
+				background: #28a745; 
+			}
+			.btn-success:hover { 
+				background: #218838; 
+			}
+			.btn-edit {
+				background: #ffc107;
+				color: #212529;
+			}
+			.btn-edit:hover {
+				background: #e0a800;
+			}
+			.btn-danger { 
+				background: #dc3545; 
+			}
+			.btn-danger:hover { 
+				background: #c82333; 
+			}
+			.card {
+				background: white;
+				border-radius: 10px;
+				padding: 2rem;
+				box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+				margin-bottom: 2rem;
+			}
+			.card h2 {
+				color: #2575fc;
+				margin-bottom: 1.5rem;
+				padding-bottom: 0.5rem;
+				border-bottom: 2px solid #f0f0f0;
+			}
+			.note-list { 
+				list-style: none; 
+			}
+			.note-list li { 
+				padding: 1.5rem; 
+				border-bottom: 1px solid #eee; 
+				display: flex; 
+				justify-content: space-between; 
+				align-items: flex-start;
+				transition: background-color 0.2s;
+				border-radius: 8px;
+				margin-bottom: 0.5rem;
+			}
+			.note-list li:hover {
+				background-color: #f8f9fa;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+			}
+			.note-list li:last-child { 
+				border-bottom: none; 
+				margin-bottom: 0;
+			}
+			.note-info {
+				flex: 1;
+				margin-right: 1rem;
+			}
+			.note-title {
+				font-size: 1.2rem;
+				font-weight: 600;
+				color: #212529;
+				margin-bottom: 0.5rem;
+			}
+			.note-preview {
+				color: #6c757d;
+				font-size: 0.95rem;
+				line-height: 1.4;
+				margin-bottom: 0.5rem;
+				display: -webkit-box;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+			}
+			.note-meta {
+				font-size: 0.8rem;
+				color: #adb5bd;
+			}
+			.note-actions { 
+				display: flex; 
+				gap: 8px; 
+			}
+			.empty-state {
+				text-align: center;
+				padding: 3rem 1rem !important;
+				flex-direction: column;
+				gap: 1rem;
+			}
+			.empty-icon {
+				font-size: 3rem;
+				opacity: 0.5;
+			}
+			.empty-text {
+				font-size: 1.2rem;
+				font-weight: 600;
+				color: #6c757d;
+			}
+			.empty-subtext {
+				color: #6c757d;
+				margin-bottom: 1rem;
+			}
+			.stats {
+				display: flex;
+				gap: 1rem;
+				margin-bottom: 1.5rem;
+			}
+			.stat-card {
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				color: white;
+				padding: 1rem;
+				border-radius: 8px;
+				flex: 1;
+				text-align: center;
+			}
+			.stat-number {
+				font-size: 1.5rem;
+				font-weight: bold;
+				margin-bottom: 0.5rem;
+			}
+			.stat-label {
+				font-size: 0.9rem;
+				opacity: 0.9;
+			}
+		</style>
 	</head>
 	<body>
 		<div class="container">
-			<header>
+			<header class="header-content">
 				<h1>笔记管理</h1>
-				<div>
+				<div class="header-actions">
 					<a href="/" class="btn btn-secondary">返回主页</a>
-					<a href="/note/new" class="btn">新建笔记</a>
+					<a href="/note/new" class="btn btn-success">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<line x1="12" y1="5" x2="12" y2="19"></line>
+							<line x1="5" y1="12" x2="19" y2="12"></line>
+						</svg>
+						新建笔记
+					</a>
 				</div>
 			</header>
+			
+			<div class="stats">
+				<div class="stat-card">
+					<div class="stat-number">%d</div>
+					<div class="stat-label">笔记数量</div>
+				</div>
+			</div>
 			
 			<div class="card">
 				<h2>笔记列表</h2>
@@ -559,13 +1016,13 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 		</div>
 	</body>
 	</html>
-	`, noteListHTML)
+	`, len(noteTitles), noteListHTML)
 	
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, tmpl)
 }
 
-// 笔记编辑器处理器
+// ==================== 笔记编辑器处理器 - 美化版 ====================
 func noteHandler(w http.ResponseWriter, r *http.Request) {
 	title := strings.TrimPrefix(r.URL.Path, "/note/")
 	
@@ -587,6 +1044,11 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 		isNew = false
 	}
 	
+	pageTitle := "新建笔记"
+	if !isNew {
+		pageTitle = "编辑笔记: " + note.Title
+	}
+	
 	// 显示笔记编辑器
 	tmpl := `
 	<!DOCTYPE html>
@@ -594,45 +1056,254 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>笔记编辑器</title>
+		<title>{{.PageTitle}} - 文件与笔记管理器</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			body { 
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+				line-height: 1.6; 
+				color: #333; 
+				background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+				min-height: 100vh;
+			}
+			.container { 
+				max-width: 900px; 
+				margin: 0 auto; 
+				padding: 20px; 
+			}
+			.header-content {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+				color: white;
+				padding: 1.5rem 2rem;
+				border-radius: 10px;
+				margin-bottom: 2rem;
+				box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+			}
+			.header-content h1 {
+				font-size: 1.8rem;
+				margin: 0;
+			}
+			.btn { 
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				background: #2575fc; 
+				color: white; 
+				padding: 10px 20px; 
+				border-radius: 5px; 
+				text-decoration: none; 
+				font-weight: bold; 
+				transition: all 0.3s ease;
+				border: none;
+				cursor: pointer;
+				font-size: 0.9rem;
+			}
+			.btn:hover { 
+				background: #1a5fd8; 
+				transform: translateY(-2px);
+				box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+			}
+			.btn-secondary { 
+				background: #6c757d; 
+			}
+			.btn-secondary:hover { 
+				background: #5a6268; 
+			}
+			.btn-success { 
+				background: #28a745; 
+			}
+			.btn-success:hover { 
+				background: #218838; 
+			}
+			.card {
+				background: white;
+				border-radius: 10px;
+				padding: 2rem;
+				box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+				margin-bottom: 2rem;
+			}
+			.card h2 {
+				color: #2575fc;
+				margin-bottom: 1.5rem;
+				padding-bottom: 0.5rem;
+				border-bottom: 2px solid #f0f0f0;
+			}
+			.form-group { 
+				margin-bottom: 1.5rem; 
+			}
+			.form-group label { 
+				display: block; 
+				margin-bottom: 0.5rem; 
+				font-weight: 600;
+				color: #495057;
+			}
+			.form-control { 
+				width: 100%; 
+				padding: 12px 15px; 
+				border: 2px solid #e9ecef; 
+				border-radius: 8px; 
+				font-size: 1rem; 
+				transition: border-color 0.3s, box-shadow 0.3s;
+				font-family: inherit;
+			}
+			.form-control:focus {
+				outline: none;
+				border-color: #2575fc;
+				box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.1);
+			}
+			.form-control[readonly] {
+				background-color: #f8f9fa;
+				border-color: #dee2e6;
+				color: #6c757d;
+				cursor: not-allowed;
+			}
+			textarea.form-control { 
+				min-height: 400px; 
+				resize: vertical; 
+				line-height: 1.5;
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			}
+			.form-actions {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-top: 2rem;
+				padding-top: 1rem;
+				border-top: 1px solid #e9ecef;
+			}
+			.form-help {
+				color: #6c757d;
+				font-size: 0.9rem;
+			}
+			.char-count {
+				text-align: right;
+				color: #6c757d;
+				font-size: 0.85rem;
+				margin-top: 0.5rem;
+			}
+		</style>
 	</head>
 	<body>
 		<div class="container">
-			<header>
-				<h1>笔记编辑器</h1>
-				<div>
-					<a href="/notes" class="btn btn-secondary">返回笔记列表</a>
-				</div>
+			<header class="header-content">
+				<h1>{{.PageTitle}}</h1>
+				<a href="/notes" class="btn btn-secondary">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<line x1="19" y1="12" x2="5" y2="12"></line>
+						<polyline points="12 19 5 12 12 5"></polyline>
+					</svg>
+					返回笔记列表
+				</a>
 			</header>
 			
 			<div class="card">
-				<form action="/save-note" method="post">
+				<form action="/save-note" method="post" id="noteForm">
 					<div class="form-group">
-						<label for="title">标题:</label>
-						<input type="text" name="title" id="title" class="form-control" value="{{.Title}}" {{if not .IsNew}}readonly{{end}} required>
+						<label for="title">笔记标题:</label>
+						<input type="text" name="title" id="title" class="form-control" 
+							   value="{{.Title}}" {{if not .IsNew}}readonly{{end}} 
+							   required maxlength="100" placeholder="请输入笔记标题">
+						<div class="char-count">
+							<span id="titleCount">0</span>/100
+						</div>
 					</div>
 					<div class="form-group">
-						<label for="body">内容:</label>
-						<textarea name="body" id="body" class="form-control" required>{{.Body}}</textarea>
+						<label for="body">笔记内容:</label>
+						<textarea name="body" id="body" class="form-control" 
+								  required placeholder="请输入笔记内容...">{{.Body}}</textarea>
+						<div class="char-count">
+							<span id="bodyCount">0</span> 字符
+						</div>
 					</div>
 					<input type="hidden" name="isNew" value="{{.IsNew}}">
 					<input type="hidden" name="oldTitle" value="{{.Title}}">
-					<button type="submit" class="btn btn-success">保存笔记</button>
+					
+					<div class="form-actions">
+						<div class="form-help">
+							{{if .IsNew}}
+								创建新笔记 - 内容将自动保存
+							{{else}}
+								编辑现有笔记 - 修改将自动保存
+							{{end}}
+						</div>
+						<button type="submit" class="btn btn-success">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+								<polyline points="17 21 17 13 7 13 7 21"></polyline>
+								<polyline points="7 3 7 8 15 8"></polyline>
+							</svg>
+							保存笔记
+						</button>
+					</div>
 				</form>
 			</div>
 		</div>
+
+		<script>
+			// 字符计数
+			const titleInput = document.getElementById('title');
+			const bodyInput = document.getElementById('body');
+			const titleCount = document.getElementById('titleCount');
+			const bodyCount = document.getElementById('bodyCount');
+			
+			function updateCounts() {
+				titleCount.textContent = titleInput.value.length;
+				bodyCount.textContent = bodyInput.value.length;
+			}
+			
+			titleInput.addEventListener('input', updateCounts);
+			bodyInput.addEventListener('input', updateCounts);
+			
+			// 初始化计数
+			updateCounts();
+			
+			// 自动保存草稿（可选功能）
+			let saveTimeout;
+			bodyInput.addEventListener('input', () => {
+				clearTimeout(saveTimeout);
+				saveTimeout = setTimeout(() => {
+					// 这里可以添加自动保存逻辑
+					console.log('内容已更改，可以添加自动保存功能');
+				}, 2000);
+			});
+			
+			// 表单提交确认
+			document.getElementById('noteForm').addEventListener('submit', function(e) {
+				const title = titleInput.value.trim();
+				const body = bodyInput.value.trim();
+				
+				if (!title) {
+					e.preventDefault();
+					alert('请输入笔记标题');
+					titleInput.focus();
+					return;
+				}
+				
+				if (!body) {
+					e.preventDefault();
+					alert('请输入笔记内容');
+					bodyInput.focus();
+					return;
+				}
+			});
+		</script>
 	</body>
 	</html>
 	`
 	
 	data := struct {
-		Title  string
-		Body   string
-		IsNew  bool
+		Title     string
+		Body      string
+		IsNew     bool
+		PageTitle string
 	}{
-		Title: note.Title,
-		Body:  note.Body,
-		IsNew: isNew,
+		Title:     note.Title,
+		Body:      note.Body,
+		IsNew:     isNew,
+		PageTitle: pageTitle,
 	}
 	
 	t, err := template.New("note").Parse(tmpl)
@@ -731,6 +1402,62 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// 重定向到笔记列表
 	http.Redirect(w, r, "/notes", http.StatusSeeOther)
+}
+
+// 辅助函数：格式化文件大小
+func formatFileSize(size int64) string {
+	if size < 1024 {
+		return fmt.Sprintf("%d B", size)
+	} else if size < 1024*1024 {
+		return fmt.Sprintf("%.1f KB", float64(size)/1024)
+	} else if size < 1024*1024*1024 {
+		return fmt.Sprintf("%.1f MB", float64(size)/(1024*1024))
+	} else {
+		return fmt.Sprintf("%.1f GB", float64(size)/(1024*1024*1024))
+	}
+}
+
+// 辅助函数：获取文件图标
+func getFileIcon(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".txt", ".md":
+		return "📄"
+	case ".pdf":
+		return "📕"
+	case ".doc", ".docx":
+		return "📘"
+	case ".xls", ".xlsx":
+		return "📗"
+	case ".jpg", ".jpeg", ".png", ".gif", ".bmp":
+		return "🖼️"
+	case ".mp3", ".wav", ".flac":
+		return "🎵"
+	case ".mp4", ".avi", ".mov":
+		return "🎬"
+	case ".zip", ".rar", ".7z":
+		return "📦"
+	default:
+		return "📎"
+	}
+}
+
+// 辅助函数：获取笔记预览
+func getNotePreview(body string) string {
+	// 移除换行和多余空格
+	preview := strings.TrimSpace(body)
+	preview = strings.ReplaceAll(preview, "\n", " ")
+	
+	// 限制长度
+	if len(preview) > 100 {
+		preview = preview[:100] + "..."
+	}
+	
+	if preview == "" {
+		preview = "无内容"
+	}
+	
+	return preview
 }
 
 // 加载笔记

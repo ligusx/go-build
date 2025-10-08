@@ -339,22 +339,10 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				const customInput = document.getElementById('fileInputCustom');
 				if (input.files.length > 0) {
 					const fileName = input.files[0].name;
-					customInput.innerHTML = `
-						<div>
-							<div class="upload-icon">✅</div>
-							<div>已选择文件: <strong>${fileName}</strong></div>
-							<div style="font-size: 0.9rem; margin-top: 0.5rem;">点击重新选择</div>
-						</div>
-					`;
+					customInput.innerHTML = '<div><div class="upload-icon">✅</div><div>已选择文件: <strong>' + fileName + '</strong></div><div style="font-size: 0.9rem; margin-top: 0.5rem;">点击重新选择</div></div>';
 					customInput.classList.add('has-file');
 				} else {
-					customInput.innerHTML = `
-						<div>
-							<div class="upload-icon">📁</div>
-							<div>点击选择文件或拖拽文件到这里</div>
-							<div style="font-size: 0.9rem; margin-top: 0.5rem;">支持所有类型文件，最大32MB</div>
-						</div>
-					`;
+					customInput.innerHTML = '<div><div class="upload-icon">📁</div><div>点击选择文件或拖拽文件到这里</div><div style="font-size: 0.9rem; margin-top: 0.5rem;">支持所有类型文件，最大32MB</div></div>';
 					customInput.classList.remove('has-file');
 				}
 			}
@@ -432,8 +420,10 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// 生成文件列表HTML
 	fileListHTML := ""
+	fileCount := 0
 	for _, file := range files {
 		if !file.IsDir() {
+			fileCount++
 			fileInfo, _ := file.Info()
 			fileSize := formatFileSize(fileInfo.Size())
 			fileIcon := getFileIcon(file.Name())
@@ -465,7 +455,7 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 					</a>
 				</div>
 			</li>
-			`, fileIcon, file.Name(), fileSize, file.Name(), file.Name(), file.Name())
+			`, fileIcon, file.Name(), fileSize, file.Name(), file.Name(), template.HTMLEscapeString(file.Name()))
 		}
 	}
 	
@@ -483,7 +473,7 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 	// 显示消息
 	alertHTML := ""
 	if msg != "" {
-		alertHTML = fmt.Sprintf(`<div class="alert alert-success">%s</div>`, msg)
+		alertHTML = fmt.Sprintf(`<div class="alert alert-success">%s</div>`, template.HTMLEscapeString(msg))
 	}
 	
 	tmpl := fmt.Sprintf(`
@@ -715,7 +705,7 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 		</div>
 	</body>
 	</html>
-	`, alertHTML, len(files), fileListHTML)
+	`, alertHTML, fileCount, fileListHTML)
 	
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, tmpl)
@@ -780,7 +770,7 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
 				</a>
 			</div>
 		</li>
-		`, title, preview, title, title, title)
+		`, template.HTMLEscapeString(title), template.HTMLEscapeString(preview), template.HTMLEscapeString(title), template.HTMLEscapeString(title), template.HTMLEscapeString(title))
 	}
 	
 	if noteListHTML == "" {

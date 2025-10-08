@@ -580,7 +580,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
                         
                         // 上传完成
                         setTimeout(() => {
-                            showUploadResult(`文件 "${file.name}" "上传文件成功!"`, 'success');
+                            showUploadResult(`"文件" "${file.name}" "上传文件成功!"`, 'success');
                             submitBtn.textContent = '上传完成';
                         }, 500);
                     }

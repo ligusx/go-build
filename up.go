@@ -1285,6 +1285,36 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
                 margin-bottom: 1rem;
                 opacity: 0.5;
             }
+            .audio-preview-container {
+                padding: 3rem 2rem;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 12px;
+                margin: 1rem;
+                text-align: center;
+                color: white;
+            }
+            .audio-icon {
+                font-size: 3rem;
+                margin-bottom: 1rem;
+            }
+            .audio-title {
+                font-size: 1.2rem;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+            }
+            .audio-filename {
+                font-size: 0.9rem;
+                opacity: 0.9;
+                margin-bottom: 2rem;
+            }
+            .audio-player {
+                width: 100%;
+                max-width: 500px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 25px;
+                padding: 10px;
+            }
         </style>
     </head>
     <body>
@@ -1368,19 +1398,24 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
                 
                 switch(fileType) {
                     case 'image':
-                        previewContent = '<img src="/preview/' + filename + '" class="preview-image" alt="' + decodedFilename + '">';
+                        previewContent = '<img src="/preview/' + filename + '" class="preview-image" alt="' + decodedFilename + '" style="max-width: 100%; max-height: 70vh; display: block; margin: 0 auto;">';
                         break;
                     case 'video':
-                        previewContent = '<video controls class="preview-video">' +
-                                        '<source src="/preview/' + filename + '" type="video/mp4">' +
+                        previewContent = '<video controls class="preview-video" style="width: 100%; max-height: 70vh; display: block; margin: 0 auto;">' +
+                                        '<source src="/preview/' + filename + '" type="' + getVideoMimeType(filename) + '">' +
                                         '您的浏览器不支持视频预览。' +
                                         '</video>';
                         break;
                     case 'audio':
-                        previewContent = '<audio controls class="preview-audio">' +
-                                        '<source src="/preview/' + filename + '" type="audio/mpeg">' +
+                        previewContent = '<div class="audio-preview-container">' +
+                                        '<div class="audio-icon">🎵</div>' +
+                                        '<div class="audio-title">正在播放音频</div>' +
+                                        '<div class="audio-filename">' + decodedFilename + '</div>' +
+                                        '<audio controls class="audio-player">' +
+                                        '<source src="/preview/' + filename + '" type="' + getAudioMimeType(filename) + '">' +
                                         '您的浏览器不支持音频预览。' +
-                                        '</audio>';
+                                        '</audio>' +
+                                        '</div>';
                         break;
                     default:
                         previewContent = '<div class="unsupported-preview">' +
@@ -1407,6 +1442,34 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
                         closePreview();
                     }
                 });
+            }
+            
+            // 获取音频MIME类型
+            function getAudioMimeType(filename) {
+                const ext = filename.toLowerCase().split('.').pop();
+                const mimeTypes = {
+                    'mp3': 'audio/mpeg',
+                    'wav': 'audio/wav',
+                    'flac': 'audio/flac',
+                    'ogg': 'audio/ogg',
+                    'm4a': 'audio/mp4',
+                    'aac': 'audio/aac'
+                };
+                return mimeTypes[ext] || 'audio/mpeg';
+            }
+            
+            // 获取视频MIME类型
+            function getVideoMimeType(filename) {
+                const ext = filename.toLowerCase().split('.').pop();
+                const mimeTypes = {
+                    'mp4': 'video/mp4',
+                    'avi': 'video/x-msvideo',
+                    'mov': 'video/quicktime',
+                    'mkv': 'video/x-matroska',
+                    'webm': 'video/webm',
+                    'flv': 'video/x-flv'
+                };
+                return mimeTypes[ext] || 'video/mp4';
             }
             
             // 关闭预览

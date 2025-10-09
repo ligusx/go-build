@@ -2335,7 +2335,7 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 						minute: '2-digit',
 						second: '2-digit'
 					});
-					lastSaveTime.textContent = `最后保存: ${timeString}`;
+					lastSaveTime.textContent = '最后保存: ' + timeString;
 				}
 			}
 			

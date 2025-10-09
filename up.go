@@ -509,6 +509,7 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
             fileInfo, _ := file.Info()
             fileSize := formatFileSize(fileInfo.Size())
             fileIcon := getFileIcon(file.Name())
+            previewButton := getPreviewButton(file.Name())  // 获取预览按钮
             
             fileListHTML += fmt.Sprintf(`
             <li>
@@ -520,6 +521,7 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
                     </div>
                 </div>
                 <div class="file-actions">
+                    %s
                     <a href="/download/%s" class="btn btn-download" title="下载文件">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -538,6 +540,7 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
                 </div>
             </li>
             `, fileIcon, template.HTMLEscapeString(file.Name()), fileSize, 
+               previewButton,  // 添加预览按钮
                url.QueryEscape(file.Name()), url.QueryEscape(file.Name()), template.HTMLEscapeString(file.Name()))
         }
     }
@@ -665,11 +668,17 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
             .btn-success:hover { 
                 background: #218838; 
             }
-            .btn-download {
+            .btn-preview {
                 background: #17a2b8;
             }
-            .btn-download:hover {
+            .btn-preview:hover {
                 background: #138496;
+            }
+            .btn-download {
+                background: #6f42c1;
+            }
+            .btn-download:hover {
+                background: #5e34b1;
             }
             .btn-danger { 
                 background: #dc3545; 
@@ -852,6 +861,86 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
                 font-size: 0.9rem;
                 margin-bottom: 1rem;
             }
+            /* 预览模态框样式 */
+            .modal {
+                display: none;
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.8);
+                backdrop-filter: blur(5px);
+            }
+            .modal-content {
+                position: relative;
+                margin: 5% auto;
+                width: 90%;
+                max-width: 800px;
+                max-height: 90vh;
+                background: white;
+                border-radius: 10px;
+                overflow: hidden;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            }
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1rem 1.5rem;
+                background: #f8f9fa;
+                border-bottom: 1px solid #dee2e6;
+            }
+            .modal-title {
+                font-weight: 600;
+                color: #212529;
+            }
+            .close {
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                cursor: pointer;
+                color: #6c757d;
+                padding: 0;
+                width: 30px;
+                height: 30px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                transition: all 0.3s ease;
+            }
+            .close:hover {
+                background: #e9ecef;
+                color: #495057;
+            }
+            .modal-body {
+                padding: 0;
+                text-align: center;
+                max-height: calc(90vh - 60px);
+                overflow: auto;
+            }
+            .preview-image, .preview-video, .preview-audio {
+                max-width: 100%;
+                max-height: 70vh;
+                display: block;
+                margin: 0 auto;
+            }
+            .preview-audio {
+                width: 100%;
+                padding: 2rem;
+            }
+            .unsupported-preview {
+                padding: 3rem 2rem;
+                text-align: center;
+                color: #6c757d;
+            }
+            .unsupported-icon {
+                font-size: 3rem;
+                margin-bottom: 1rem;
+                opacity: 0.5;
+            }
         </style>
     </head>
     <body>
@@ -905,6 +994,99 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
                 </ul>
             </div>
         </div>
+
+        <!-- 预览模态框 -->
+        <div id="previewModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title" id="previewTitle">文件预览</div>
+                    <button class="close" onclick="closePreview()">&times;</button>
+                </div>
+                <div class="modal-body" id="previewBody">
+                    <!-- 预览内容将在这里动态加载 -->
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // 预览文件函数
+            function previewFile(filename, fileType) {
+                const modal = document.getElementById('previewModal');
+                const modalTitle = document.getElementById('previewTitle');
+                const modalBody = document.getElementById('previewBody');
+                
+                // 解码文件名（处理中文等特殊字符）
+                const decodedFilename = decodeURIComponent(filename);
+                modalTitle.textContent = '预览: ' + decodedFilename;
+                
+                // 根据文件类型设置预览内容
+                let previewContent = '';
+                
+                switch(fileType) {
+                    case 'image':
+                        previewContent = '<img src="/preview/' + filename + '" class="preview-image" alt="' + decodedFilename + '">';
+                        break;
+                    case 'video':
+                        previewContent = '<video controls class="preview-video">' +
+                                        '<source src="/preview/' + filename + '" type="video/mp4">' +
+                                        '您的浏览器不支持视频预览。' +
+                                        '</video>';
+                        break;
+                    case 'audio':
+                        previewContent = '<audio controls class="preview-audio">' +
+                                        '<source src="/preview/' + filename + '" type="audio/mpeg">' +
+                                        '您的浏览器不支持音频预览。' +
+                                        '</audio>';
+                        break;
+                    default:
+                        previewContent = '<div class="unsupported-preview">' +
+                                        '<div class="unsupported-icon">📄</div>' +
+                                        '<h3>不支持预览</h3>' +
+                                        '<p>此文件类型不支持在线预览。</p>' +
+                                        '<p>请下载文件后查看。</p>' +
+                                        '</div>';
+                }
+                
+                modalBody.innerHTML = previewContent;
+                modal.style.display = 'block';
+                
+                // 点击模态框背景关闭
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closePreview();
+                    }
+                });
+                
+                // ESC键关闭
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        closePreview();
+                    }
+                });
+            }
+            
+            // 关闭预览
+            function closePreview() {
+                const modal = document.getElementById('previewModal');
+                const modalBody = document.getElementById('previewBody');
+                
+                // 停止所有媒体播放
+                const videos = modalBody.getElementsByTagName('video');
+                const audios = modalBody.getElementsByTagName('audio');
+                
+                for (let video of videos) {
+                    video.pause();
+                    video.currentTime = 0;
+                }
+                
+                for (let audio of audios) {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }
+                
+                modal.style.display = 'none';
+            }
+        </script>
     </body>
     </html>`
     

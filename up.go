@@ -22,29 +22,29 @@ var notes = make(map[string]*Note)
 var noteTitles []string
 
 func main() {
-	// 确保up目录存在
-	os.Mkdir("up", 0755)
-	
-	// 加载笔记
-	loadNotes()
-	
-	// 设置路由
-	http.HandleFunc("/", indexHandler)
-	http.HandleFunc("/upload", uploadHandler)
-	http.HandleFunc("/download/", downloadHandler)
+    // 确保up目录存在
+    os.Mkdir("up", 0755)
+    
+    // 加载笔记
+    loadNotes()
+    
+    // 设置路由
+    http.HandleFunc("/", indexHandler)
+    http.HandleFunc("/upload", uploadHandler)
+    http.HandleFunc("/download/", downloadHandler)
     http.HandleFunc("/preview/", previewHandler) 
-	http.HandleFunc("/notes", notesHandler)
-	http.HandleFunc("/note/", noteHandler)
-	http.HandleFunc("/save-note", saveNoteHandler)
-	http.HandleFunc("/delete-note/", deleteNoteHandler)
-	http.HandleFunc("/files", filesHandler)
-	http.HandleFunc("/delete-file/", deleteFileHandler)
-	
-	// 静态文件服务
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	
-	fmt.Println("服务器启动在 http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+    http.HandleFunc("/notes", notesHandler)
+    http.HandleFunc("/note/", noteHandler)
+    http.HandleFunc("/save-note", saveNoteHandler)
+    http.HandleFunc("/delete-note/", deleteNoteHandler)
+    http.HandleFunc("/files", filesHandler)
+    http.HandleFunc("/delete-file/", deleteFileHandler)
+    
+    // 静态文件服务
+    http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+    
+    fmt.Println("服务器启动在 http://localhost:8080")
+    http.ListenAndServe(":8080", nil)
 }
 
 // 主页处理器

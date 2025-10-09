@@ -32,6 +32,7 @@ func main() {
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/upload", uploadHandler)
 	http.HandleFunc("/download/", downloadHandler)
+    http.HandleFunc("/preview/", previewHandler) 
 	http.HandleFunc("/notes", notesHandler)
 	http.HandleFunc("/note/", noteHandler)
 	http.HandleFunc("/save-note", saveNoteHandler)

@@ -2410,25 +2410,34 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	r.ParseForm()
+	// 解析表单
+	err := r.ParseForm()
+	if err != nil {
+		handleSaveError(w, "解析表单失败", err, r.FormValue("autoSave") == "true")
+		return
+	}
+	
 	title := r.FormValue("title")
 	body := r.FormValue("body")
 	isNew := r.FormValue("isNew") == "true"
 	oldTitle := r.FormValue("oldTitle")
 	autoSave := r.FormValue("autoSave") == "true" // 检查是否为自动保存
 	
+	fmt.Printf("保存笔记请求 - 标题: %s, 内容长度: %d, 是否新建: %t, 自动保存: %t\n", 
+		title, len(body), isNew, autoSave)
+	
 	if title == "" {
-		if autoSave {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprint(w, "标题不能为空")
-		} else {
-			http.Error(w, "标题不能为空", http.StatusBadRequest)
-		}
+		handleSaveError(w, "标题不能为空", nil, autoSave)
+		return
+	}
+	
+	if body == "" {
+		handleSaveError(w, "内容不能为空", nil, autoSave)
 		return
 	}
 	
 	// 如果是编辑现有笔记且标题改变，需要删除旧笔记文件
-	if !isNew && oldTitle != title {
+	if !isNew && oldTitle != "" && oldTitle != title {
 		deleteNoteFile(oldTitle)
 		delete(notes, oldTitle)
 		// 从noteTitles中移除旧标题
@@ -2441,14 +2450,9 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// 保存笔记到文件
-	err := saveNoteToFile(title, body)
+	err = saveNoteToFile(title, body)
 	if err != nil {
-		if autoSave {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "保存笔记失败: "+err.Error())
-		} else {
-			http.Error(w, "保存笔记失败: "+err.Error(), http.StatusInternalServerError)
-		}
+		handleSaveError(w, "保存笔记失败", err, autoSave)
 		return
 	}
 	
@@ -2469,6 +2473,7 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// 如果是自动保存，返回成功状态
 	if autoSave {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, "保存成功")
 		return
@@ -2476,6 +2481,24 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// 普通保存，重定向到笔记列表
 	http.Redirect(w, r, "/notes", http.StatusSeeOther)
+}
+
+// 处理保存错误
+func handleSaveError(w http.ResponseWriter, message string, err error, isAutoSave bool) {
+	errorMsg := message
+	if err != nil {
+		errorMsg += ": " + err.Error()
+	}
+	
+	fmt.Printf("保存错误: %s\n", errorMsg)
+	
+	if isAutoSave {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, errorMsg)
+	} else {
+		http.Error(w, errorMsg, http.StatusBadRequest)
+	}
 }
 
 // 删除笔记处理器

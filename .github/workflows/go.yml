@@ -18,20 +18,46 @@ jobs:
         with:
           go-version: '1.21'  # 改为你的 Go 版本
 
-      - name: Build Hook (Linux)
+      - name: Build Hook
         run: |
           mkdir -p dist
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/webhook-linux ./*.go
-          GOOS=windows GOARCH=amd64 go build -o dist/webhook-windows.exe ./*.go
-          GOOS=darwin GOARCH=amd64 go build -o dist/webhook-macos ./*.go
+          
+          # 获取main包所在的go文件名
+          main_file=$(find . -name "*.go" -type f -exec grep -l "package main" {} \; | head -1)
+          
+          if [[ -n "$main_file" ]]; then
+            base_name=$(basename "$main_file" .go)
+          else
+            # 如果没有找到main包，使用第一个go文件
+            for go_file in *.go; do
+              if [[ -f "$go_file" ]]; then
+                base_name=$(basename "$go_file" .go)
+                break
+              fi
+            done
+          fi
+          
+          # 最终回退到默认名称
+          base_name=${base_name:-"webhook"}
+          
+          echo "Building binaries: ${base_name}-{linux,windows,macos}"
+          
+          # 构建三个平台的二进制文件
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "dist/${base_name}-linux" ./*.go
+          GOOS=windows GOARCH=amd64 go build -o "dist/${base_name}-windows.exe" ./*.go
+          GOOS=darwin GOARCH=amd64 go build -o "dist/${base_name}-macos" ./*.go
+          
+          # 输出构建结果验证
+          echo "Build completed. Generated files:"
+          ls -la dist/
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dist/webhook-linux
-            dist/webhook-windows.exe
-            dist/webhook-macos
+            dist/*-linux
+            dist/*-windows.exe
+            dist/*-macos
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

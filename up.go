@@ -392,7 +392,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	filepath := filepath.Join("up", filename)
+	filePath := filepath.Join("up", filename)
 	
 	// 检查文件是否存在
 	if _, err := os.Stat(filepath); os.IsNotExist(err) {
@@ -422,7 +422,7 @@ func previewHandler(w http.ResponseWriter, r *http.Request) {
         decodedFilename = filename
     }
     
-    filepath := filepath.Join("up", decodedFilename)
+    filePath := filepath.Join("up", decodedFilename)
     
     // 检查文件是否存在
     if _, err := os.Stat(filepath); os.IsNotExist(err) {
@@ -936,7 +936,7 @@ func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
         decodedFilename = filename
     }
     
-    filepath := filepath.Join("up", decodedFilename)
+    filePath := filepath.Join("up", decodedFilename)
     
     // 检查文件是否存在
     if _, err := os.Stat(filepath); os.IsNotExist(err) {

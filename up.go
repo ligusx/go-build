@@ -159,7 +159,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// ==================== 显示上传表单 - 美化版 ====================
+	// ==================== 显示上传表单 - 带进度条美化版 ====================
 	tmpl := `
 	<!DOCTYPE html>
 	<html lang="zh-CN">
@@ -200,19 +200,29 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				display: inline-block; 
 				background: #2575fc; 
 				color: white; 
-				padding: 10px 20px; 
-				border-radius: 5px; 
+				padding: 12px 24px; 
+				border-radius: 8px; 
 				text-decoration: none; 
-				font-weight: bold; 
+				font-weight: 600; 
 				transition: all 0.3s ease;
 				border: none;
 				cursor: pointer;
 				font-size: 1rem;
+				font-family: inherit;
 			}
 			.btn:hover { 
 				background: #1a5fd8; 
 				transform: translateY(-2px);
-				box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+				box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+			}
+			.btn:active {
+				transform: translateY(0);
+			}
+			.btn:disabled {
+				background: #6c757d;
+				cursor: not-allowed;
+				transform: none;
+				box-shadow: none;
 			}
 			.btn-secondary { 
 				background: #6c757d; 
@@ -222,39 +232,47 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			.card {
 				background: white;
-				border-radius: 10px;
-				padding: 2rem;
-				box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+				border-radius: 12px;
+				padding: 2.5rem;
+				box-shadow: 0 8px 25px rgba(0,0,0,0.1);
 				margin-bottom: 2rem;
+				transition: transform 0.3s ease;
+			}
+			.card:hover {
+				transform: translateY(-2px);
 			}
 			.card h2 {
 				color: #2575fc;
 				margin-bottom: 1.5rem;
-				padding-bottom: 0.5rem;
+				padding-bottom: 0.75rem;
 				border-bottom: 2px solid #f0f0f0;
+				font-size: 1.5rem;
 			}
 			.form-group { 
 				margin-bottom: 1.5rem; 
 			}
 			.form-group label { 
 				display: block; 
-				margin-bottom: 0.5rem; 
+				margin-bottom: 0.75rem; 
 				font-weight: 600;
 				color: #495057;
+				font-size: 1rem;
 			}
 			.form-control { 
 				width: 100%; 
-				padding: 12px 15px; 
+				padding: 14px 16px; 
 				border: 2px solid #e9ecef; 
 				border-radius: 8px; 
 				font-size: 1rem; 
-				transition: border-color 0.3s, box-shadow 0.3s;
+				transition: all 0.3s ease;
 				font-family: inherit;
+				background: #fafbfc;
 			}
 			.form-control:focus {
 				outline: none;
 				border-color: #2575fc;
 				box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.1);
+				background: white;
 			}
 			.file-input-wrapper {
 				position: relative;
@@ -272,36 +290,195 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			.file-input-custom {
 				display: flex;
+				flex-direction: column;
 				align-items: center;
 				justify-content: center;
-				padding: 2rem;
+				padding: 3rem 2rem;
 				border: 2px dashed #dee2e6;
-				border-radius: 8px;
+				border-radius: 12px;
 				background: #f8f9fa;
 				transition: all 0.3s ease;
 				text-align: center;
 				color: #6c757d;
 				font-weight: 500;
+				min-height: 200px;
 			}
 			.file-input-custom:hover {
 				border-color: #2575fc;
 				background: #e7f1ff;
 				color: #2575fc;
+				transform: scale(1.02);
 			}
 			.file-input-custom.has-file {
 				border-color: #28a745;
 				background: #f0fff4;
 				color: #28a745;
+				border-style: solid;
+			}
+			.file-input-custom.dragover {
+				border-color: #2575fc;
+				background: #e7f1ff;
+				color: #2575fc;
+				transform: scale(1.02);
 			}
 			.upload-icon {
-				font-size: 2rem;
-				margin-bottom: 0.5rem;
+				font-size: 3rem;
+				margin-bottom: 1rem;
+				transition: transform 0.3s ease;
+			}
+			.file-input-custom:hover .upload-icon {
+				transform: scale(1.1);
 			}
 			.form-actions {
 				display: flex;
 				justify-content: flex-end;
-				gap: 10px;
-				margin-top: 1.5rem;
+				gap: 12px;
+				margin-top: 2rem;
+				padding-top: 1.5rem;
+				border-top: 1px solid #e9ecef;
+			}
+			
+			/* 进度条样式 */
+			.progress-container {
+				display: none;
+				margin-top: 2rem;
+				padding: 1.5rem;
+				background: #f8f9fa;
+				border-radius: 12px;
+				border: 1px solid #e9ecef;
+			}
+			.progress-container.show {
+				display: block;
+				animation: fadeIn 0.5s ease;
+			}
+			.progress-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 1rem;
+			}
+			.progress-title {
+				font-weight: 600;
+				color: #495057;
+				font-size: 1.1rem;
+			}
+			.progress-percentage {
+				font-weight: 700;
+				color: #2575fc;
+				font-size: 1.1rem;
+			}
+			.progress-bar {
+				width: 100%;
+				height: 12px;
+				background: #e9ecef;
+				border-radius: 6px;
+				overflow: hidden;
+				position: relative;
+			}
+			.progress-fill {
+				height: 100%;
+				background: linear-gradient(90deg, #2575fc, #6a11cb);
+				border-radius: 6px;
+				width: 0%;
+				transition: width 0.3s ease;
+				position: relative;
+				overflow: hidden;
+			}
+			.progress-fill::after {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: -100%;
+				width: 100%;
+				height: 100%;
+				background: linear-gradient(90deg, 
+					transparent, 
+					rgba(255,255,255,0.4), 
+					transparent);
+				animation: shimmer 1.5s infinite;
+			}
+			.progress-details {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-top: 0.75rem;
+				font-size: 0.9rem;
+				color: #6c757d;
+			}
+			.progress-speed {
+				font-weight: 500;
+			}
+			.progress-time {
+				font-weight: 500;
+			}
+			
+			/* 成功状态 */
+			.progress-success .progress-fill {
+				background: linear-gradient(90deg, #28a745, #20c997);
+			}
+			.progress-success .progress-percentage {
+				color: #28a745;
+			}
+			
+			/* 动画 */
+			@keyframes fadeIn {
+				from { opacity: 0; transform: translateY(10px); }
+				to { opacity: 1; transform: translateY(0); }
+			}
+			@keyframes shimmer {
+				0% { transform: translateX(-100%); }
+				100% { transform: translateX(200%); }
+			}
+			@keyframes pulse {
+				0% { transform: scale(1); }
+				50% { transform: scale(1.05); }
+				100% { transform: scale(1); }
+			}
+			@keyframes bounce {
+				0%, 20%, 53%, 80%, 100% {
+					transform: translate3d(0,0,0);
+				}
+				40%, 43% {
+					transform: translate3d(0,-8px,0);
+				}
+				70% {
+					transform: translate3d(0,-4px,0);
+				}
+				90% {
+					transform: translate3d(0,-2px,0);
+				}
+			}
+			
+			/* 加载动画 */
+			.uploading .upload-icon {
+				animation: bounce 1s infinite;
+			}
+			
+			/* 成功动画 */
+			.success-animation {
+				animation: pulse 0.6s ease;
+			}
+			
+			/* 状态消息 */
+			.status-message {
+				text-align: center;
+				padding: 1rem;
+				margin-top: 1rem;
+				border-radius: 8px;
+				font-weight: 500;
+				display: none;
+			}
+			.status-success {
+				background: #d4edda;
+				color: #155724;
+				border: 1px solid #c3e6cb;
+				display: block;
+			}
+			.status-error {
+				background: #f8d7da;
+				color: #721c24;
+				border: 1px solid #f5c6cb;
+				display: block;
 			}
 		</style>
 	</head>
@@ -323,28 +500,53 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 							<div class="file-input-custom" id="fileInputCustom">
 								<div>
 									<div class="upload-icon">📁</div>
-									<div>点击选择文件或拖拽文件到这里</div>
-									<div style="font-size: 0.9rem; margin-top: 0.5rem;">支持所有类型文件，最大32MB</div>
+									<div style="font-size: 1.1rem; margin-bottom: 0.5rem;">点击选择文件或拖拽文件到这里</div>
+									<div style="font-size: 0.9rem; color: #868e96;">支持所有类型文件，最大32MB</div>
 								</div>
 							</div>
 						</div>
 					</div>
+					
+					<!-- 上传进度条 -->
+					<div class="progress-container" id="progressContainer">
+						<div class="progress-header">
+							<div class="progress-title">上传进度</div>
+							<div class="progress-percentage" id="progressPercentage">0%</div>
+						</div>
+						<div class="progress-bar">
+							<div class="progress-fill" id="progressFill"></div>
+						</div>
+						<div class="progress-details">
+							<div class="progress-speed" id="progressSpeed">0 KB/s</div>
+							<div class="progress-time" id="progressTime">--</div>
+						</div>
+					</div>
+					
+					<!-- 状态消息 -->
+					<div class="status-message" id="statusMessage"></div>
+					
 					<div class="form-actions">
-						<button type="submit" class="btn">上传文件</button>
+						<button type="submit" class="btn" id="submitBtn">
+							<span>开始上传</span>
+						</button>
 					</div>
 				</form>
 			</div>
 		</div>
 
 		<script>
+			let uploadStartTime;
+			let lastLoaded = 0;
+			
 			function updateFileName(input) {
 				const customInput = document.getElementById('fileInputCustom');
 				if (input.files.length > 0) {
 					const fileName = input.files[0].name;
-					customInput.innerHTML = '<div><div class="upload-icon">✅</div><div>已选择文件: <strong>' + fileName + '</strong></div><div style="font-size: 0.9rem; margin-top: 0.5rem;">点击重新选择</div></div>';
+					const fileSize = formatFileSize(input.files[0].size);
+					customInput.innerHTML = '<div><div class="upload-icon">✅</div><div style="font-size: 1.1rem; margin-bottom: 0.5rem;">已选择文件</div><div style="font-weight: 600; margin-bottom: 0.25rem;">' + fileName + '</div><div style="font-size: 0.9rem; color: #868e96;">大小: ' + fileSize + '</div></div>';
 					customInput.classList.add('has-file');
 				} else {
-					customInput.innerHTML = '<div><div class="upload-icon">📁</div><div>点击选择文件或拖拽文件到这里</div><div style="font-size: 0.9rem; margin-top: 0.5rem;">支持所有类型文件，最大32MB</div></div>';
+					customInput.innerHTML = '<div><div class="upload-icon">📁</div><div style="font-size: 1.1rem; margin-bottom: 0.5rem;">点击选择文件或拖拽文件到这里</div><div style="font-size: 0.9rem; color: #868e96;">支持所有类型文件，最大32MB</div></div>';
 					customInput.classList.remove('has-file');
 				}
 			}
@@ -355,26 +557,168 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			
 			customInput.addEventListener('dragover', (e) => {
 				e.preventDefault();
-				customInput.style.borderColor = '#2575fc';
-				customInput.style.background = '#e7f1ff';
+				customInput.classList.add('dragover');
 			});
 			
 			customInput.addEventListener('dragleave', (e) => {
 				e.preventDefault();
-				if (!customInput.classList.contains('has-file')) {
-					customInput.style.borderColor = '#dee2e6';
-					customInput.style.background = '#f8f9fa';
-				}
+				customInput.classList.remove('dragover');
 			});
 			
 			customInput.addEventListener('drop', (e) => {
 				e.preventDefault();
+				customInput.classList.remove('dragover');
 				const files = e.dataTransfer.files;
 				if (files.length > 0) {
 					fileInput.files = files;
 					updateFileName(fileInput);
 				}
 			});
+
+			// 格式化文件大小
+			function formatFileSize(bytes) {
+				if (bytes === 0) return '0 B';
+				const k = 1024;
+				const sizes = ['B', 'KB', 'MB', 'GB'];
+				const i = Math.floor(Math.log(bytes) / Math.log(k));
+				return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+			}
+
+			// 上传表单提交
+			document.getElementById('uploadForm').addEventListener('submit', function(e) {
+				e.preventDefault();
+				
+				const fileInput = document.getElementById('file');
+				const submitBtn = document.getElementById('submitBtn');
+				const progressContainer = document.getElementById('progressContainer');
+				const progressFill = document.getElementById('progressFill');
+				const progressPercentage = document.getElementById('progressPercentage');
+				const progressSpeed = document.getElementById('progressSpeed');
+				const progressTime = document.getElementById('progressTime');
+				const statusMessage = document.getElementById('statusMessage');
+				
+				if (!fileInput.files.length) {
+					showStatus('请选择要上传的文件', 'error');
+					return;
+				}
+
+				// 重置状态
+				statusMessage.style.display = 'none';
+				progressContainer.classList.remove('progress-success');
+				progressFill.style.width = '0%';
+				progressPercentage.textContent = '0%';
+				progressSpeed.textContent = '0 KB/s';
+				progressTime.textContent = '--';
+				
+				// 显示进度条
+				progressContainer.classList.add('show');
+				submitBtn.disabled = true;
+				submitBtn.innerHTML = '<span>上传中...</span>';
+				
+				// 添加上传中样式
+				customInput.classList.add('uploading');
+				
+				const formData = new FormData(this);
+				const xhr = new XMLHttpRequest();
+				
+				uploadStartTime = Date.now();
+				lastLoaded = 0;
+				
+				// 进度事件
+				xhr.upload.addEventListener('progress', function(e) {
+					if (e.lengthComputable) {
+						const percent = Math.round((e.loaded / e.total) * 100);
+						progressFill.style.width = percent + '%';
+						progressPercentage.textContent = percent + '%';
+						
+						// 计算上传速度
+						const currentTime = Date.now();
+						const timeDiff = (currentTime - uploadStartTime) / 1000; // 秒
+						if (timeDiff > 0) {
+							const speed = e.loaded / timeDiff; // bytes per second
+							progressSpeed.textContent = formatSpeed(speed);
+							
+							// 计算剩余时间
+							if (percent < 100) {
+								const remainingBytes = e.total - e.loaded;
+								const remainingTime = remainingBytes / speed;
+								progressTime.textContent = formatTime(remainingTime);
+							}
+						}
+						
+						lastLoaded = e.loaded;
+					}
+				});
+				
+				// 完成事件
+				xhr.addEventListener('load', function(e) {
+					if (xhr.status === 200 || xhr.status === 303) {
+						// 上传成功
+						progressContainer.classList.add('progress-success');
+						progressFill.style.width = '100%';
+						progressPercentage.textContent = '100%';
+						progressTime.textContent = '完成!';
+						
+						customInput.classList.remove('uploading');
+						customInput.classList.add('success-animation');
+						
+						showStatus('文件上传成功！正在跳转...', 'success');
+						
+						// 2秒后跳转
+						setTimeout(function() {
+							window.location.href = '/files?msg=文件上传成功';
+						}, 2000);
+					} else {
+						handleUploadError('上传失败: ' + xhr.statusText);
+					}
+				});
+				
+				// 错误事件
+				xhr.addEventListener('error', function() {
+					handleUploadError('上传过程中发生错误');
+				});
+				
+				// 中止事件
+				xhr.addEventListener('abort', function() {
+					handleUploadError('上传已取消');
+				});
+				
+				xhr.open('POST', '/upload');
+				xhr.send(formData);
+				
+				function handleUploadError(message) {
+					showStatus(message, 'error');
+					submitBtn.disabled = false;
+					submitBtn.innerHTML = '<span>重新上传</span>';
+					customInput.classList.remove('uploading');
+				}
+			});
+			
+			function formatSpeed(bytesPerSecond) {
+				if (bytesPerSecond === 0) return '0 KB/s';
+				const k = 1024;
+				const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+				const i = Math.floor(Math.log(bytesPerSecond) / Math.log(k));
+				return parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+			}
+			
+			function formatTime(seconds) {
+				if (seconds === 0) return '--';
+				if (seconds < 60) {
+					return Math.ceil(seconds) + '秒';
+				} else if (seconds < 3600) {
+					return Math.ceil(seconds / 60) + '分钟';
+				} else {
+					return Math.ceil(seconds / 3600) + '小时';
+				}
+			}
+			
+			function showStatus(message, type) {
+				const statusMessage = document.getElementById('statusMessage');
+				statusMessage.textContent = message;
+				statusMessage.className = 'status-message status-' + type;
+				statusMessage.style.display = 'block';
+			}
 		</script>
 	</body>
 	</html>

@@ -752,7 +752,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath)
 }
 
-// 预览文件处理器
+// 预览文件处理器 - 修复音频预览
 func previewHandler(w http.ResponseWriter, r *http.Request) {
     filename := strings.TrimPrefix(r.URL.Path, "/preview/")
     if filename == "" {
@@ -766,7 +766,7 @@ func previewHandler(w http.ResponseWriter, r *http.Request) {
         decodedFilename = filename
     }
     
-    filePath := filepath.Join("up", decodedFilename)  // 注意这里使用 filePath 而不是 filepath
+    filePath := filepath.Join("up", decodedFilename)
     
     // 检查文件是否存在
     if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -774,49 +774,45 @@ func previewHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // 设置正确的Content-Type - 这是你的第434行
-    ext := strings.ToLower(filepath.Ext(decodedFilename))  // 这里使用 filepath 包
+    // 设置正确的Content-Type
+    ext := strings.ToLower(filepath.Ext(decodedFilename))
     
-    switch ext {
-    case ".jpg", ".jpeg":
-        w.Header().Set("Content-Type", "image/jpeg")
-    case ".png":
-        w.Header().Set("Content-Type", "image/png")
-    case ".gif":
-        w.Header().Set("Content-Type", "image/gif")
-    case ".bmp":
-        w.Header().Set("Content-Type", "image/bmp")
-    case ".webp":
-        w.Header().Set("Content-Type", "image/webp")
-    case ".svg":
-        w.Header().Set("Content-Type", "image/svg+xml")
-    case ".mp4":
-        w.Header().Set("Content-Type", "video/mp4")
-    case ".avi":
-        w.Header().Set("Content-Type", "video/x-msvideo")
-    case ".mov":
-        w.Header().Set("Content-Type", "video/quicktime")
-    case ".mkv":
-        w.Header().Set("Content-Type", "video/x-matroska")
-    case ".webm":
-        w.Header().Set("Content-Type", "video/webm")
-    case ".flv":
-        w.Header().Set("Content-Type", "video/x-flv")
-    case ".mp3":
-        w.Header().Set("Content-Type", "audio/mpeg")
-    case ".wav":
-        w.Header().Set("Content-Type", "audio/wav")
-    case ".flac":
-        w.Header().Set("Content-Type", "audio/flac")
-    case ".ogg":
-        w.Header().Set("Content-Type", "audio/ogg")
-    case ".m4a":
-        w.Header().Set("Content-Type", "audio/mp4")
-    case ".aac":
-        w.Header().Set("Content-Type", "audio/aac")
-    default:
+    // 详细的MIME类型映射
+    mimeTypes := map[string]string{
+        // 图片格式
+        ".jpg":  "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png":  "image/png",
+        ".gif":  "image/gif",
+        ".bmp":  "image/bmp",
+        ".webp": "image/webp",
+        ".svg":  "image/svg+xml",
+        
+        // 视频格式
+        ".mp4":  "video/mp4",
+        ".avi":  "video/x-msvideo",
+        ".mov":  "video/quicktime",
+        ".mkv":  "video/x-matroska",
+        ".webm": "video/webm",
+        ".flv":  "video/x-flv",
+        
+        // 音频格式
+        ".mp3":  "audio/mpeg",
+        ".wav":  "audio/wav",
+        ".flac": "audio/flac",
+        ".ogg":  "audio/ogg",
+        ".m4a":  "audio/mp4",
+        ".aac":  "audio/aac",
+    }
+    
+    if mimeType, exists := mimeTypes[ext]; exists {
+        w.Header().Set("Content-Type", mimeType)
+    } else {
         w.Header().Set("Content-Type", "application/octet-stream")
     }
+    
+    // 设置缓存控制头，避免重复请求
+    w.Header().Set("Cache-Control", "public, max-age=3600") // 缓存1小时
     
     // 提供文件预览
     http.ServeFile(w, r, filePath)
@@ -2442,72 +2438,6 @@ func getPreviewButton(filename string) string {
     
     // 不支持预览的文件类型不显示预览按钮
     return ""
-}
-
-// 预览文件处理器 - 修复音频预览
-func previewHandler(w http.ResponseWriter, r *http.Request) {
-    filename := strings.TrimPrefix(r.URL.Path, "/preview/")
-    if filename == "" {
-        http.Error(w, "文件名不能为空", http.StatusBadRequest)
-        return
-    }
-    
-    // 解码文件名
-    decodedFilename, err := url.QueryUnescape(filename)
-    if err != nil {
-        decodedFilename = filename
-    }
-    
-    filePath := filepath.Join("up", decodedFilename)
-    
-    // 检查文件是否存在
-    if _, err := os.Stat(filePath); os.IsNotExist(err) {
-        http.NotFound(w, r)
-        return
-    }
-    
-    // 设置正确的Content-Type
-    ext := strings.ToLower(filepath.Ext(decodedFilename))
-    
-    // 详细的MIME类型映射
-    mimeTypes := map[string]string{
-        // 图片格式
-        ".jpg":  "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png":  "image/png",
-        ".gif":  "image/gif",
-        ".bmp":  "image/bmp",
-        ".webp": "image/webp",
-        ".svg":  "image/svg+xml",
-        
-        // 视频格式
-        ".mp4":  "video/mp4",
-        ".avi":  "video/x-msvideo",
-        ".mov":  "video/quicktime",
-        ".mkv":  "video/x-matroska",
-        ".webm": "video/webm",
-        ".flv":  "video/x-flv",
-        
-        // 音频格式
-        ".mp3":  "audio/mpeg",
-        ".wav":  "audio/wav",
-        ".flac": "audio/flac",
-        ".ogg":  "audio/ogg",
-        ".m4a":  "audio/mp4",
-        ".aac":  "audio/aac",
-    }
-    
-    if mimeType, exists := mimeTypes[ext]; exists {
-        w.Header().Set("Content-Type", mimeType)
-    } else {
-        w.Header().Set("Content-Type", "application/octet-stream")
-    }
-    
-    // 设置缓存控制头，避免重复请求
-    w.Header().Set("Cache-Control", "public, max-age=3600") // 缓存1小时
-    
-    // 提供文件预览
-    http.ServeFile(w, r, filePath)
 }
 
 // 加载笔记

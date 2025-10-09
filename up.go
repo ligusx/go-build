@@ -1949,7 +1949,7 @@ func notesHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprint(w, html)
 }
 
-// ==================== 笔记编辑器处理器 - 美化版 ====================
+// ==================== 笔记编辑器处理器 - 带自动保存功能 ====================
 func noteHandler(w http.ResponseWriter, r *http.Request) {
 	title := strings.TrimPrefix(r.URL.Path, "/note/")
 	
@@ -2111,6 +2111,40 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 				font-size: 0.85rem;
 				margin-top: 0.5rem;
 			}
+			/* 自动保存状态指示器 */
+			.auto-save-status {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				font-size: 0.85rem;
+				color: #6c757d;
+			}
+			.status-indicator {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				background: #6c757d;
+				transition: all 0.3s ease;
+			}
+			.status-saving {
+				background: #ffc107;
+				animation: pulse 1.5s infinite;
+			}
+			.status-saved {
+				background: #28a745;
+			}
+			.status-error {
+				background: #dc3545;
+			}
+			@keyframes pulse {
+				0% { opacity: 1; }
+				50% { opacity: 0.5; }
+				100% { opacity: 1; }
+			}
+			.save-time {
+				font-size: 0.8rem;
+				color: #868e96;
+			}
 		</style>
 	</head>
 	<body>
@@ -2150,11 +2184,11 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 					
 					<div class="form-actions">
 						<div class="form-help">
-							{{if .IsNew}}
-								创建新笔记 - 内容将自动保存
-							{{else}}
-								编辑现有笔记 - 修改将自动保存
-							{{end}}
+							<div class="auto-save-status">
+								<div class="status-indicator" id="statusIndicator"></div>
+								<span id="statusText">已就绪</span>
+								<span class="save-time" id="lastSaveTime"></span>
+							</div>
 						</div>
 						<button type="submit" class="btn btn-success">
 							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2175,6 +2209,13 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 			const bodyInput = document.getElementById('body');
 			const titleCount = document.getElementById('titleCount');
 			const bodyCount = document.getElementById('bodyCount');
+			const statusIndicator = document.getElementById('statusIndicator');
+			const statusText = document.getElementById('statusText');
+			const lastSaveTime = document.getElementById('lastSaveTime');
+			
+			let autoSaveTimeout;
+			let lastSaveTimestamp = 0;
+			const AUTO_SAVE_DELAY = 2000; // 2秒后自动保存
 			
 			function updateCounts() {
 				titleCount.textContent = titleInput.value.length;
@@ -2187,15 +2228,130 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 			// 初始化计数
 			updateCounts();
 			
-			// 自动保存草稿（可选功能）
-			let saveTimeout;
-			bodyInput.addEventListener('input', () => {
-				clearTimeout(saveTimeout);
-				saveTimeout = setTimeout(() => {
-					// 这里可以添加自动保存逻辑
-					console.log('内容已更改，可以添加自动保存功能');
-				}, 2000);
-			});
+			// 自动保存功能
+			function setupAutoSave() {
+				let hasUnsavedChanges = false;
+				
+				// 监听输入变化
+				titleInput.addEventListener('input', scheduleAutoSave);
+				bodyInput.addEventListener('input', scheduleAutoSave);
+				
+				function scheduleAutoSave() {
+					hasUnsavedChanges = true;
+					clearTimeout(autoSaveTimeout);
+					
+					// 更新状态为"未保存"
+					updateSaveStatus('unsaved', '有未保存的更改');
+					
+					autoSaveTimeout = setTimeout(() => {
+						if (hasUnsavedChanges) {
+							autoSave();
+						}
+					}, AUTO_SAVE_DELAY);
+				}
+				
+				function autoSave() {
+					const title = titleInput.value.trim();
+					const body = bodyInput.value.trim();
+					
+					if (!title || !body) {
+						updateSaveStatus('error', '标题和内容不能为空');
+						return;
+					}
+					
+					// 更新状态为"保存中"
+					updateSaveStatus('saving', '正在保存...');
+					
+					const formData = new FormData();
+					formData.append('title', title);
+					formData.append('body', body);
+					formData.append('isNew', '{{.IsNew}}');
+					formData.append('oldTitle', '{{.Title}}');
+					formData.append('autoSave', 'true'); // 标记为自动保存
+					
+					fetch('/save-note', {
+						method: 'POST',
+						body: formData
+					})
+					.then(response => {
+						if (response.ok) {
+							hasUnsavedChanges = false;
+							lastSaveTimestamp = Date.now();
+							updateSaveStatus('saved', '已自动保存');
+							updateLastSaveTime();
+							
+							// 如果是新建笔记，更新URL和表单状态
+							if ('{{.IsNew}}' === 'true') {
+								updateNewNoteState(title);
+							}
+						} else {
+							throw new Error('保存失败');
+						}
+					})
+					.catch(error => {
+						console.error('自动保存失败:', error);
+						updateSaveStatus('error', '保存失败');
+					});
+				}
+				
+				// 页面卸载前提示未保存的更改
+				window.addEventListener('beforeunload', (e) => {
+					if (hasUnsavedChanges) {
+						e.preventDefault();
+						e.returnValue = '您有未保存的更改，确定要离开吗？';
+					}
+				});
+			}
+			
+			// 更新保存状态
+			function updateSaveStatus(status, text) {
+				statusIndicator.className = 'status-indicator';
+				statusText.textContent = text;
+				
+				switch(status) {
+					case 'unsaved':
+						statusIndicator.style.background = '#ffc107';
+						break;
+					case 'saving':
+						statusIndicator.classList.add('status-saving');
+						break;
+					case 'saved':
+						statusIndicator.classList.add('status-saved');
+						break;
+					case 'error':
+						statusIndicator.classList.add('status-error');
+						break;
+					default:
+						statusIndicator.style.background = '#6c757d';
+				}
+			}
+			
+			// 更新最后保存时间
+			function updateLastSaveTime() {
+				if (lastSaveTimestamp > 0) {
+					const now = new Date(lastSaveTimestamp);
+					const timeString = now.toLocaleTimeString('zh-CN', { 
+						hour: '2-digit', 
+						minute: '2-digit',
+						second: '2-digit'
+					});
+					lastSaveTime.textContent = `最后保存: ${timeString}`;
+				}
+			}
+			
+			// 如果是新建笔记，保存后更新状态
+			function updateNewNoteState(newTitle) {
+				// 更新隐藏字段
+				document.querySelector('input[name="isNew"]').value = 'false';
+				document.querySelector('input[name="oldTitle"]').value = newTitle;
+				
+				// 更新页面标题
+				document.querySelector('h1').textContent = '编辑笔记: ' + newTitle;
+				document.title = '编辑笔记: ' + newTitle + ' - 文件与笔记管理器';
+			}
+			
+			// 初始化自动保存
+			setupAutoSave();
 			
 			// 表单提交确认
 			document.getElementById('noteForm').addEventListener('submit', function(e) {
@@ -2215,6 +2371,10 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 					bodyInput.focus();
 					return;
 				}
+				
+				// 清除自动保存定时器
+				clearTimeout(autoSaveTimeout);
+				updateSaveStatus('saving', '正在保存...');
 			});
 		</script>
 	</body>
@@ -2243,7 +2403,7 @@ func noteHandler(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, data)
 }
 
-// 保存笔记处理器
+// 保存笔记处理器 - 支持自动保存
 func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "方法不允许", http.StatusMethodNotAllowed)
@@ -2255,9 +2415,15 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 	body := r.FormValue("body")
 	isNew := r.FormValue("isNew") == "true"
 	oldTitle := r.FormValue("oldTitle")
+	autoSave := r.FormValue("autoSave") == "true" // 检查是否为自动保存
 	
 	if title == "" {
-		http.Error(w, "标题不能为空", http.StatusBadRequest)
+		if autoSave {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, "标题不能为空")
+		} else {
+			http.Error(w, "标题不能为空", http.StatusBadRequest)
+		}
 		return
 	}
 	
@@ -2277,7 +2443,12 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// 保存笔记到文件
 	err := saveNoteToFile(title, body)
 	if err != nil {
-		http.Error(w, "保存笔记失败: "+err.Error(), http.StatusInternalServerError)
+		if autoSave {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "保存笔记失败: "+err.Error())
+		} else {
+			http.Error(w, "保存笔记失败: "+err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 	
@@ -2296,7 +2467,14 @@ func saveNoteHandler(w http.ResponseWriter, r *http.Request) {
 		noteTitles = append(noteTitles, title)
 	}
 	
-	// 重定向到笔记列表
+	// 如果是自动保存，返回成功状态
+	if autoSave {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "保存成功")
+		return
+	}
+	
+	// 普通保存，重定向到笔记列表
 	http.Redirect(w, r, "/notes", http.StatusSeeOther)
 }
 

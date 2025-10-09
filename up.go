@@ -2341,7 +2341,7 @@ func getPreviewButton(filename string) string {
     
     for _, imgExt := range imageExts {
         if ext == imgExt {
-            return fmt.Sprintf(`<button class="btn btn-preview" onclick="previewFile('%s', 'image')" title="预览图片">
+            return fmt.Sprintf(`<button type="button" class="btn btn-preview" onclick="previewFile('%s', 'image')" title="预览图片">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -2354,7 +2354,7 @@ func getPreviewButton(filename string) string {
     
     for _, vidExt := range videoExts {
         if ext == vidExt {
-            return fmt.Sprintf(`<button class="btn btn-preview" onclick="previewFile('%s', 'video')" title="预览视频">
+            return fmt.Sprintf(`<button type="button" class="btn btn-preview" onclick="previewFile('%s', 'video')" title="预览视频">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="23 7 16 12 23 17 23 7"></polygon>
                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
@@ -2366,7 +2366,7 @@ func getPreviewButton(filename string) string {
     
     for _, audExt := range audioExts {
         if ext == audExt {
-            return fmt.Sprintf(`<button class="btn btn-preview" onclick="previewFile('%s', 'audio')" title="预览音频">
+            return fmt.Sprintf(`<button type="button" class="btn btn-preview" onclick="previewFile('%s', 'audio')" title="预览音频">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 18V5l12-2v13"></path>
                     <circle cx="6" cy="18" r="3"></circle>
@@ -2379,6 +2379,72 @@ func getPreviewButton(filename string) string {
     
     // 不支持预览的文件类型不显示预览按钮
     return ""
+}
+
+// 预览文件处理器 - 修复音频预览
+func previewHandler(w http.ResponseWriter, r *http.Request) {
+    filename := strings.TrimPrefix(r.URL.Path, "/preview/")
+    if filename == "" {
+        http.Error(w, "文件名不能为空", http.StatusBadRequest)
+        return
+    }
+    
+    // 解码文件名
+    decodedFilename, err := url.QueryUnescape(filename)
+    if err != nil {
+        decodedFilename = filename
+    }
+    
+    filePath := filepath.Join("up", decodedFilename)
+    
+    // 检查文件是否存在
+    if _, err := os.Stat(filePath); os.IsNotExist(err) {
+        http.NotFound(w, r)
+        return
+    }
+    
+    // 设置正确的Content-Type
+    ext := strings.ToLower(filepath.Ext(decodedFilename))
+    
+    // 详细的MIME类型映射
+    mimeTypes := map[string]string{
+        // 图片格式
+        ".jpg":  "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png":  "image/png",
+        ".gif":  "image/gif",
+        ".bmp":  "image/bmp",
+        ".webp": "image/webp",
+        ".svg":  "image/svg+xml",
+        
+        // 视频格式
+        ".mp4":  "video/mp4",
+        ".avi":  "video/x-msvideo",
+        ".mov":  "video/quicktime",
+        ".mkv":  "video/x-matroska",
+        ".webm": "video/webm",
+        ".flv":  "video/x-flv",
+        
+        // 音频格式
+        ".mp3":  "audio/mpeg",
+        ".wav":  "audio/wav",
+        ".flac": "audio/flac",
+        ".ogg":  "audio/ogg",
+        ".m4a":  "audio/mp4",
+        ".aac":  "audio/aac",
+    }
+    
+    if mimeType, exists := mimeTypes[ext]; exists {
+        w.Header().Set("Content-Type", mimeType)
+    } else {
+        w.Header().Set("Content-Type", "application/octet-stream")
+    }
+    
+    // 设置缓存控制头，避免重复请求
+    w.Header().Set("Cache-Control", "public, max-age=3600") // 缓存1小时
+    
+    // 提供文件预览
+    http.ServeFile(w, r, filePath)
 }
 
 // 加载笔记

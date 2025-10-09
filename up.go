@@ -392,7 +392,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	filePath := filepath.Join("up", filename)
+	filepath := filepath.Join("up", filename)
 	
 	// 检查文件是否存在
 	if _, err := os.Stat(filepath); os.IsNotExist(err) {
@@ -422,16 +422,17 @@ func previewHandler(w http.ResponseWriter, r *http.Request) {
         decodedFilename = filename
     }
     
-    filePath := filepath.Join("up", decodedFilename)
+    filePath := filepath.Join("up", decodedFilename)  // 注意这里使用 filePath 而不是 filepath
     
     // 检查文件是否存在
-    if _, err := os.Stat(filepath); os.IsNotExist(err) {
+    if _, err := os.Stat(filePath); os.IsNotExist(err) {
         http.NotFound(w, r)
         return
     }
     
-    // 设置正确的Content-Type
-    ext := strings.ToLower(filepath.Ext(decodedFilename))
+    // 设置正确的Content-Type - 这是你的第434行
+    ext := strings.ToLower(filepath.Ext(decodedFilename))  // 这里使用 filepath 包
+    
     switch ext {
     case ".jpg", ".jpeg":
         w.Header().Set("Content-Type", "image/jpeg")
@@ -474,7 +475,7 @@ func previewHandler(w http.ResponseWriter, r *http.Request) {
     }
     
     // 提供文件预览
-    http.ServeFile(w, r, filepath)
+    http.ServeFile(w, r, filePath)
 }
 
 // ==================== 文件列表处理器 - 美化版（带搜索功能） ====================
@@ -936,7 +937,7 @@ func deleteFileHandler(w http.ResponseWriter, r *http.Request) {
         decodedFilename = filename
     }
     
-    filePath := filepath.Join("up", decodedFilename)
+    filepath := filepath.Join("up", decodedFilename)
     
     // 检查文件是否存在
     if _, err := os.Stat(filepath); os.IsNotExist(err) {

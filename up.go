@@ -407,6 +407,75 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath)
 }
 
+// 预览文件处理器
+func previewHandler(w http.ResponseWriter, r *http.Request) {
+    filename := strings.TrimPrefix(r.URL.Path, "/preview/")
+    if filename == "" {
+        http.Error(w, "文件名不能为空", http.StatusBadRequest)
+        return
+    }
+    
+    // 解码文件名
+    decodedFilename, err := url.QueryUnescape(filename)
+    if err != nil {
+        decodedFilename = filename
+    }
+    
+    filepath := filepath.Join("up", decodedFilename)
+    
+    // 检查文件是否存在
+    if _, err := os.Stat(filepath); os.IsNotExist(err) {
+        http.NotFound(w, r)
+        return
+    }
+    
+    // 设置正确的Content-Type
+    ext := strings.ToLower(filepath.Ext(decodedFilename))
+    switch ext {
+    case ".jpg", ".jpeg":
+        w.Header().Set("Content-Type", "image/jpeg")
+    case ".png":
+        w.Header().Set("Content-Type", "image/png")
+    case ".gif":
+        w.Header().Set("Content-Type", "image/gif")
+    case ".bmp":
+        w.Header().Set("Content-Type", "image/bmp")
+    case ".webp":
+        w.Header().Set("Content-Type", "image/webp")
+    case ".svg":
+        w.Header().Set("Content-Type", "image/svg+xml")
+    case ".mp4":
+        w.Header().Set("Content-Type", "video/mp4")
+    case ".avi":
+        w.Header().Set("Content-Type", "video/x-msvideo")
+    case ".mov":
+        w.Header().Set("Content-Type", "video/quicktime")
+    case ".mkv":
+        w.Header().Set("Content-Type", "video/x-matroska")
+    case ".webm":
+        w.Header().Set("Content-Type", "video/webm")
+    case ".flv":
+        w.Header().Set("Content-Type", "video/x-flv")
+    case ".mp3":
+        w.Header().Set("Content-Type", "audio/mpeg")
+    case ".wav":
+        w.Header().Set("Content-Type", "audio/wav")
+    case ".flac":
+        w.Header().Set("Content-Type", "audio/flac")
+    case ".ogg":
+        w.Header().Set("Content-Type", "audio/ogg")
+    case ".m4a":
+        w.Header().Set("Content-Type", "audio/mp4")
+    case ".aac":
+        w.Header().Set("Content-Type", "audio/aac")
+    default:
+        w.Header().Set("Content-Type", "application/octet-stream")
+    }
+    
+    // 提供文件预览
+    http.ServeFile(w, r, filepath)
+}
+
 // ==================== 文件列表处理器 - 美化版（带搜索功能） ====================
 func filesHandler(w http.ResponseWriter, r *http.Request) {
     // 获取消息参数和搜索参数
@@ -1729,6 +1798,59 @@ func getNotePreview(body string) string {
 	}
 	
 	return preview
+}
+
+// 辅助函数：获取预览按钮
+func getPreviewButton(filename string) string {
+    ext := strings.ToLower(filepath.Ext(filename))
+    
+    // 支持的图片格式
+    imageExts := []string{".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"}
+    // 支持的视频格式
+    videoExts := []string{".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv"}
+    // 支持的音频格式
+    audioExts := []string{".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
+    
+    for _, imgExt := range imageExts {
+        if ext == imgExt {
+            return fmt.Sprintf(`<button class="btn btn-preview" onclick="previewFile('%s', 'image')" title="预览图片">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                预览
+            </button>`, url.QueryEscape(filename))
+        }
+    }
+    
+    for _, vidExt := range videoExts {
+        if ext == vidExt {
+            return fmt.Sprintf(`<button class="btn btn-preview" onclick="previewFile('%s', 'video')" title="预览视频">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                </svg>
+                预览
+            </button>`, url.QueryEscape(filename))
+        }
+    }
+    
+    for _, audExt := range audioExts {
+        if ext == audExt {
+            return fmt.Sprintf(`<button class="btn btn-preview" onclick="previewFile('%s', 'audio')" title="预览音频">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18V5l12-2v13"></path>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                预览
+            </button>`, url.QueryEscape(filename))
+        }
+    }
+    
+    // 不支持预览的文件类型不显示预览按钮
+    return ""
 }
 
 // 加载笔记

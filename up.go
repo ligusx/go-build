@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // 笔记结构体
@@ -42,8 +43,28 @@ func main() {
     
     // 静态文件服务
     http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-    
+    // 创建自定义HTTP服务器配置
+    srv := &http.Server{
+        Addr: ":8080",
+        // 设置超时时间为一年（31536000秒）
+        ReadTimeout:       31536000 * time.Second,  // 读取超时
+        WriteTimeout:      31536000 * time.Second,  // 写入超时
+        ReadHeaderTimeout: 60 * time.Second,        // 读取header超时（保持合理值）
+        IdleTimeout:       120 * time.Second,       // 空闲连接超时
+        MaxHeaderBytes:    1 << 20,                 // 1MB最大header大小
+    }
+	
     fmt.Println("服务器启动在 http://localhost:8080")
+    fmt.Println("HTTP服务器超时设置：")
+    fmt.Printf("  读取超时: %v\n", srv.ReadTimeout)
+    fmt.Printf("  写入超时: %v\n", srv.WriteTimeout)
+    fmt.Printf("  读取Header超时: %v\n", srv.ReadHeaderTimeout)
+    fmt.Printf("  空闲超时: %v\n", srv.IdleTimeout)
+    
+    // 启动服务器
+    if err := srv.ListenAndServe(); err != nil {
+        fmt.Printf("服务器启动失败: %v\n", err)
+    }
     http.ListenAndServe(":8080", nil)
 }
 

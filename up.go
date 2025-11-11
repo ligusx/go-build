@@ -131,7 +131,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		// 解析表单
-		r.ParseMultipartForm(32 << 20) // 32MB
+		r.ParseMultipartForm(0) // 无限制
 		
 		file, handler, err := r.FormFile("file")
 		if err != nil {
@@ -501,7 +501,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 								<div>
 									<div class="upload-icon">📁</div>
 									<div style="font-size: 1.1rem; margin-bottom: 0.5rem;">点击选择文件或拖拽文件到这里</div>
-									<div style="font-size: 0.9rem; color: #868e96;">支持所有类型文件，最大32MB</div>
+									<div style="font-size: 0.9rem; color: #868e96;">支持所有类型文件</div>
 								</div>
 							</div>
 						</div>
